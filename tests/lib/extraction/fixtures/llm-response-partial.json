@@ -1,0 +1,18 @@
+{
+  "extractions": [
+    {
+      "key": "company_name",
+      "value": "Possible Corp",
+      "confidence": 0.35,
+      "snippet": "...mentioned in passing by Possible Corp representative...",
+      "reason": "Name only found in a passing mention, not a definitive statement"
+    },
+    {
+      "key": "industry",
+      "value": "Consulting",
+      "confidence": 0.4,
+      "snippet": "consulting and advisory services",
+      "reason": "Page mentions consulting but may not be the primary business"
+    }
+  ]
+}

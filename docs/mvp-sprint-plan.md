@@ -10,14 +10,14 @@
 
 Stand up the project skeleton, database, auth, and multi-tenancy so that all subsequent phases have infrastructure to build on.
 
-- [ ] Project structure: Hono router organization, shared middleware, error handling, env/config loading
-- [ ] Postgres connection and migration tooling (e.g. Drizzle or Kysely)
-- [ ] Core tables: `tenants`, `users`, `tenant_memberships` (with role: admin/editor/viewer)
-- [ ] TypeScript domain types from PRD §7 (`FieldDefinition`, `SchemaVersion`, `Citation`, `ExtractedFieldValue`, `SubmissionDraft`, `SubmissionConfirmed`)
-- [ ] Auth endpoints (`POST /api/auth/login`, `POST /api/auth/logout`) + session/token middleware
-- [ ] Multi-tenant scoping middleware (all queries filtered by `tenantId` from auth context)
-- [ ] Object storage client setup (S3 or R2) for artifact uploads in later phases
-- [ ] Test harness: `bun test` with a test database seeding strategy
+- [x] Project structure: Hono router organization, shared middleware, error handling, env/config loading
+- [x] Postgres connection and migration tooling (e.g. Drizzle or Kysely)
+- [x] Core tables: `tenants`, `users`, `tenant_memberships` (with role: admin/editor/viewer)
+- [x] TypeScript domain types from PRD §7 (`FieldDefinition`, `SchemaVersion`, `Citation`, `ExtractedFieldValue`, `SubmissionDraft`, `SubmissionConfirmed`)
+- [x] Auth endpoints (`POST /api/auth/login`, `POST /api/auth/logout`) + session/token middleware
+- [x] Multi-tenant scoping middleware (all queries filtered by `tenantId` from auth context)
+- [x] Object storage client setup (S3 or R2) for artifact uploads in later phases
+- [x] Test harness: `bun test` with a test database seeding strategy
 
 **Exit criteria:** Authenticated requests resolve a tenant context. Migrations run cleanly. A health-check endpoint returns 200.
 
@@ -27,13 +27,13 @@ Stand up the project skeleton, database, auth, and multi-tenancy so that all sub
 
 Build the admin-facing schema CRUD — the foundation that every submission depends on.
 
-- [ ] Database tables: `schemas`, `schema_versions`, `field_definitions`
-- [ ] `POST /api/schemas` — create a new schema within a tenant
-- [ ] `POST /api/schemas/:schemaId/versions` — publish a new version with a set of `FieldDefinition`s
-- [ ] `GET /api/schemas/:schemaId/versions/:version` — retrieve a specific version
-- [ ] Field definition validation: enforce allowed `FieldType` values, validate `enumOptions` presence for enum type, validate `validation` rules (regex compiles, min ≤ max), reject empty `instructions`
-- [ ] Schema version immutability: published versions cannot be mutated, only new versions created
-- [ ] Tests: CRUD operations, validation rejection cases, version ordering
+- [x] Database tables: `schemas` (tenant-scoped) + `schema_versions` (immutable, JSONB fields column storing `FieldDefinition[]`)
+- [x] `POST /api/schemas` — create a new schema within a tenant (schema + version 1 atomically)
+- [x] `POST /api/schemas/:schemaId/versions` — publish a new version with `FOR UPDATE` row locking
+- [x] `GET /api/schemas/:schemaId/versions/:version` — retrieve a specific version
+- [x] Field definition validation: enforce allowed `FieldType` values, validate `enumOptions` presence for enum type, validate `validation` rules (regex compiles, min ≤ max), reject empty `instructions`, upper bounds on all string/array sizes
+- [x] Schema version immutability: published versions cannot be mutated, only new versions created
+- [x] Tests: CRUD operations, validation rejection cases, tenant isolation, version ordering (29 tests)
 
 **Exit criteria:** An admin can create a schema, publish versions, and retrieve them. Invalid field definitions are rejected with clear errors.
 
@@ -41,35 +41,60 @@ Build the admin-facing schema CRUD — the foundation that every submission depe
 
 ## Phase 3: Crawling & Content Pipeline
 
-Build the standalone modules that fetch, parse, and classify web pages. These are pure functions / services with no workflow orchestration yet — testable in isolation.
+Build the standalone modules that fetch and parse web pages. These are pure functions / services with no workflow orchestration yet — testable in isolation.
 
-- [ ] URL normalization and validation (reject non-HTTP, private IPs, etc.)
-- [ ] `robots.txt` fetcher + parser (respect disallow rules)
-- [ ] Sitemap discovery (`/sitemap.xml`, sitemap index) + fallback to heuristic page list (`/about`, `/pricing`, `/contact`, `/security`, `/privacy`, `/terms`)
-- [ ] HTML page fetcher: rate-limited (configurable concurrency + delay), respects robots.txt, stores raw HTML snapshots (compressed) to object storage
-- [ ] Text extraction: strip HTML to clean text + metadata (title, headings, meta description)
-- [ ] Page classifier: tag each page with a category (about, pricing, contact, security, legal, other) — can start rule-based, swap to LLM later
-- [ ] Artifact persistence: save raw HTML + extracted text + classification result, keyed by `(submissionId, url)`
-- [ ] Tests: robots.txt parsing, URL normalization edge cases, text extraction from sample HTML, classification accuracy on fixture pages
+- [x] URL normalization and validation (reject non-HTTP, private IPs, etc.)
+- [x] `robots.txt` fetcher + parser (respect disallow rules)
+- [x] Sitemap discovery (`/sitemap.xml`, sitemap index) + fallback to heuristic page list (`/about`, `/pricing`, `/contact`, `/security`, `/privacy`, `/terms`)
+- [x] HTML page fetcher: rate-limited (configurable concurrency + delay), respects robots.txt, stores raw HTML snapshots (compressed) to object storage
+- [x] Text extraction: strip HTML to clean text + metadata (title, headings, meta description)
+- [x] Artifact persistence: save raw HTML + extracted text, keyed by `(submissionId, url)`
+- [x] Tests: robots.txt parsing, URL normalization edge cases, text extraction from sample HTML
 
-**Exit criteria:** Given a domain, the pipeline discovers pages, fetches them respecting robots.txt, extracts clean text, classifies pages, and stores artifacts. All testable without a database via dependency injection.
+**Exit criteria:** Given a domain, the pipeline discovers pages, fetches them respecting robots.txt, extracts clean text, and stores artifacts. All testable without a database via dependency injection.
 
 ---
 
-## Phase 4: LLM Extraction Engine
+## Phase 4: LLM Extraction & Synthesis Engine
 
-Build the module that takes a schema + crawled page content and produces `ExtractedFieldValue[]` with citations.
+Build the two-phase extraction pipeline: permissive per-page LLM extraction followed by deterministic synthesis/merge.
 
-- [ ] LLM client abstraction (start with one provider — OpenAI or Anthropic; pluggable interface for later)
-- [ ] Prompt construction: combine `FieldDefinition[]` (labels, instructions, types, source hints) with page excerpts, ordered by classification relevance to each field's `sourceHints`
-- [ ] Structured output parsing: LLM returns JSON matching the `ExtractedFieldValue[]` shape; validate against schema field types
-- [ ] Citation mapping: each extracted value must include `Citation` objects (url, snippet, pageTitle, retrievedAt); fields without evidence get `status: "unknown"`
-- [ ] Confidence scoring: model-provided 0–1 score per field; fields below `confidenceThreshold` get `status: "needs_review"`
-- [ ] Post-processing normalization: phone numbers, addresses, canonical company name formatting
-- [ ] Schema constraint validation: regex, min/max length, enum membership — reject or flag violations
-- [ ] Tests: prompt construction with fixture schemas, structured output parsing with sample LLM responses (mocked), citation presence enforcement, normalization functions
+### Per-page extraction (LLM)
 
-**Exit criteria:** Given a schema and a set of crawled/classified pages, the engine returns well-formed `ExtractedFieldValue[]` with citations, confidence scores, and correct status flags. Works with mocked LLM responses in tests.
+- [x] LLM client abstraction (start with one provider — OpenAI or Anthropic; pluggable interface for later)
+- [x] Prompt construction: combine full `FieldDefinition[]` (labels, instructions, types) with a **single page's** extracted text — each page is processed independently against the full schema
+- [x] Permissive extraction: low confidence threshold — the LLM should extract fields even on partial or weak evidence (e.g., "HIPAA compliant" mentioned on a features page partially fills a compliance field)
+- [x] Structured output parsing: LLM returns JSON matching the `ExtractedFieldValue[]` shape; validate against schema field types
+- [x] Citation requirement: every extracted value must cite the current page (url, snippet, pageTitle, retrievedAt)
+- [x] Confidence scoring: model-provided 0–1 score per field
+
+### Synthesis / merge (deterministic)
+
+- [x] Collect all per-page extraction results across every crawled page
+- [x] For each schema field, select the best value: highest confidence, most supporting citations
+- [x] Combine citations when multiple pages support the same field value
+- [x] Apply `sourceHints` as a **confidence boost** during merge — e.g., a pricing value found on a `/pricing` URL is weighted higher than the same value on a blog post
+- [x] Apply `confidenceThreshold` quality gate per field to assign final status:
+  - `auto` — confidence meets or exceeds threshold
+  - `needs_review` — evidence exists but confidence is below threshold, or conflicting values found across pages
+  - `unknown` — no page provided any evidence for this field
+- [x] Flag contradictory extractions (different values from different pages) as `needs_review` with a reason
+
+### Post-processing
+
+- [x] Normalization: phone numbers, addresses, canonical company name formatting
+- [x] Schema constraint validation: regex, min/max length, enum membership — reject or flag violations
+
+### Tests
+
+- [x] Per-page extraction with fixture pages and mocked LLM responses
+- [x] Merge logic with overlapping extractions (same field found on multiple pages)
+- [x] Merge logic with conflicting extractions (different values for same field)
+- [x] `sourceHints` confidence boost behavior
+- [x] Normalization functions
+- [x] `confidenceThreshold` quality gate status assignment
+
+**Exit criteria:** Given a schema and a set of crawled pages, the per-page extractor produces field values with citations per page (mocked LLM), and the synthesis step merges them into well-formed `ExtractedFieldValue[]` with correct confidence scores, combined citations, and status flags. `sourceHints` boost and conflict detection work correctly.
 
 ---
 
@@ -82,18 +107,18 @@ Wire phases 3 and 4 together into a durable Vercel Workflow, triggered by the su
 - [ ] Vercel Workflow `generate_onboarding_draft(submissionId)` with durable steps:
   1. **Validate input** — normalize URL, enforce allowlist/denylist, create run record
   2. **Discover pages** — robots.txt + sitemap + heuristic fallback
-  3. **Fetch pages** — rate-limited HTML fetch, store artifacts
-  4. **Classify pages** — tag each page
-  5. **Extract fields** — LLM call with schema + selected excerpts
-  6. **Validate + normalize** — enforce schema constraints, set status flags
-  7. **Persist draft** — write `SubmissionDraft` to database
-  8. **Notify** — mark workflow complete (email/webhook notification is stretch)
+  3. **Fetch pages** — rate-limited HTML fetch, store raw HTML snapshots
+  4. **Extract text** — strip HTML to clean text + metadata (title, headings, meta description)
+  5. **Extract fields per page** — LLM call per page with full schema + single page text; permissive extraction
+  6. **Synthesize fields** — deterministic merge of per-page results; apply `sourceHints` boost, `confidenceThreshold` gate, flag conflicts
+  7. **Validate + normalize** — enforce schema constraints (regex, min/max, enum); normalize formatting
+  8. **Persist draft + notify** — write `SubmissionDraft` to database; send "draft ready" notification (optional)
 - [ ] Step-level retry policies and timeouts (transient fetch/LLM failures)
 - [ ] Idempotency: re-triggering a submission reuses existing artifacts rather than duplicating
 - [ ] `GET /api/submissions/:submissionId` — returns current draft or confirmed state + workflow status
 - [ ] Tests: workflow step sequencing with mocked crawl + extraction, idempotency verification, failure/retry scenarios
 
-**Exit criteria:** Creating a submission triggers the full pipeline end-to-end. A draft with extracted fields, citations, and confidence scores is persisted and retrievable via API. Workflow failures retry gracefully.
+**Exit criteria:** Creating a submission triggers the full pipeline end-to-end. A draft with per-page extractions merged via synthesis, combined citations, confidence scores, and correct status flags is persisted and retrievable via API. Workflow failures retry gracefully.
 
 ---
 

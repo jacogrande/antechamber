@@ -1,0 +1,41 @@
+{
+  "extractions": [
+    {
+      "key": "company_name",
+      "value": "Acme Corp",
+      "confidence": 0.95,
+      "snippet": "Acme Corp is an industry leader"
+    },
+    {
+      "key": "industry",
+      "value": "Technology",
+      "confidence": 0.85,
+      "snippet": "a technology company focused on innovation"
+    },
+    {
+      "key": "phone",
+      "value": "5551234567",
+      "confidence": 0.9,
+      "snippet": "Call us at 555-123-4567"
+    },
+    {
+      "key": "email",
+      "value": "contact@acme.com",
+      "confidence": 0.92,
+      "snippet": "Email: contact@acme.com"
+    },
+    {
+      "key": "employee_count",
+      "value": 250,
+      "confidence": 0.7,
+      "snippet": "Over 250 employees worldwide",
+      "reason": "Approximate figure from 'over 250' phrasing"
+    },
+    {
+      "key": "address",
+      "value": "123 Main Street, San Francisco, California 94105",
+      "confidence": 0.88,
+      "snippet": "123 Main Street, San Francisco, California 94105"
+    }
+  ]
+}
