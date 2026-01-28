@@ -102,9 +102,9 @@ Build the two-phase extraction pipeline: permissive per-page LLM extraction foll
 
 Wire phases 3 and 4 together into a durable Vercel Workflow, triggered by the submission creation endpoint.
 
-- [ ] Database tables: `submissions` (draft + confirmed states), `workflow_runs` (status, step progress, error log)
-- [ ] `POST /api/submissions` — accepts `{ schemaId, schemaVersion?, websiteUrl, customerMeta? }`, creates submission record, triggers workflow, returns `{ submissionId, workflowRunId }`
-- [ ] Vercel Workflow `generate_onboarding_draft(submissionId)` with durable steps:
+- [x] Database tables: `submissions` (draft + confirmed states), `workflow_runs` (status, step progress, error log)
+- [x] `POST /api/submissions` — accepts `{ schemaId, schemaVersion?, websiteUrl, customerMeta? }`, creates submission record, triggers workflow, returns `{ submissionId, workflowRunId }`
+- [x] Vercel Workflow `generate_onboarding_draft(submissionId)` with durable steps:
   1. **Validate input** — normalize URL, enforce allowlist/denylist, create run record
   2. **Discover pages** — robots.txt + sitemap + heuristic fallback
   3. **Fetch pages** — rate-limited HTML fetch, store raw HTML snapshots
@@ -113,10 +113,10 @@ Wire phases 3 and 4 together into a durable Vercel Workflow, triggered by the su
   6. **Synthesize fields** — deterministic merge of per-page results; apply `sourceHints` boost, `confidenceThreshold` gate, flag conflicts
   7. **Validate + normalize** — enforce schema constraints (regex, min/max, enum); normalize formatting
   8. **Persist draft + notify** — write `SubmissionDraft` to database; send "draft ready" notification (optional)
-- [ ] Step-level retry policies and timeouts (transient fetch/LLM failures)
-- [ ] Idempotency: re-triggering a submission reuses existing artifacts rather than duplicating
-- [ ] `GET /api/submissions/:submissionId` — returns current draft or confirmed state + workflow status
-- [ ] Tests: workflow step sequencing with mocked crawl + extraction, idempotency verification, failure/retry scenarios
+- [x] Step-level retry policies and timeouts (transient fetch/LLM failures)
+- [x] Idempotency: re-triggering a submission reuses existing artifacts rather than duplicating
+- [x] `GET /api/submissions/:submissionId` — returns current draft or confirmed state + workflow status
+- [x] Tests: workflow step sequencing with mocked crawl + extraction, idempotency verification, failure/retry scenarios (29 tests)
 
 **Exit criteria:** Creating a submission triggers the full pipeline end-to-end. A draft with per-page extractions merged via synthesis, combined citations, confidence scores, and correct status flags is persisted and retrievable via API. Workflow failures retry gracefully.
 

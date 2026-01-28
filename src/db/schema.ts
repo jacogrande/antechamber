@@ -52,6 +52,54 @@ export const schemas = pgTable(
   (t) => [unique().on(t.tenantId, t.name)],
 );
 
+export const submissionStatusEnum = pgEnum('submission_status', [
+  'pending',
+  'draft',
+  'confirmed',
+  'failed',
+]);
+
+export const workflowStatusEnum = pgEnum('workflow_status', [
+  'pending',
+  'running',
+  'completed',
+  'failed',
+]);
+
+export const submissions = pgTable('submissions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  tenantId: uuid('tenant_id')
+    .notNull()
+    .references(() => tenants.id),
+  schemaId: uuid('schema_id')
+    .notNull()
+    .references(() => schemas.id),
+  schemaVersion: integer('schema_version').notNull(),
+  websiteUrl: text('website_url').notNull(),
+  status: submissionStatusEnum('status').notNull().default('pending'),
+  fields: jsonb('fields'),
+  customerMeta: jsonb('customer_meta'),
+  confirmedBy: text('confirmed_by'),
+  confirmedAt: timestamp('confirmed_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const workflowRuns = pgTable('workflow_runs', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  submissionId: uuid('submission_id')
+    .notNull()
+    .references(() => submissions.id),
+  workflowName: text('workflow_name').notNull(),
+  status: workflowStatusEnum('status').notNull().default('pending'),
+  steps: jsonb('steps').notNull().default([]),
+  error: text('error'),
+  startedAt: timestamp('started_at', { withTimezone: true }),
+  completedAt: timestamp('completed_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const schemaVersions = pgTable(
   'schema_versions',
   {

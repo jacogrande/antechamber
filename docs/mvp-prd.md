@@ -78,7 +78,7 @@ We’ll build it as a multi-tenant SaaS with:
 
 - Customer receives intake link
 - Enters website URL
-- System runs workflow: crawl → classify → extract → validate → generate draft
+- System runs workflow: crawl → extract per page → synthesize → validate → generate draft
 - Customer reviews fields with citations, edits, confirms
 - System exports confirmed data and artifacts
 
@@ -121,16 +121,34 @@ We’ll build it as a multi-tenant SaaS with:
 
 - Raw HTML snapshot (compressed)
 - Extracted text + metadata
-- Page classification results
 
-### 5.3 Extraction (LLM + deterministic post-processing)
+### 5.3 Extraction & Synthesis
 
-**Requirements**
+Extraction uses a two-phase approach: permissive per-page extraction followed by deterministic synthesis.
 
-- Produce JSON exactly matching schema
-- **Evidence-first**: each value must reference at least one source snippet
-- Confidence score per field + rationale
-- Post-process normalization (phone, addresses, canonical company name)
+**Phase 1: Per-page extraction (LLM)**
+
+- Each crawled page is sent individually to the LLM along with the **full schema**
+- The LLM extracts every field it can find on that page, even on partial or weak evidence (low confidence threshold) — e.g., "HIPAA compliant" on a features page partially fills a compliance field
+- Every extracted value must cite the source page (url, snippet)
+- Produces a set of `ExtractedFieldValue[]` per page, each with a confidence score
+
+**Phase 2: Synthesis / merge (deterministic)**
+
+- Collects all per-page extraction results across every crawled page
+- For each schema field, selects the best value: highest confidence, most supporting citations
+- Combines citations when multiple pages support the same field value
+- Applies `sourceHints` as a **confidence boost** during merge — e.g., a pricing value found on a `/pricing` URL is weighted higher than the same value found on a blog post
+- Applies `confidenceThreshold` quality gate per field to assign status:
+  - `auto` — confidence meets or exceeds threshold
+  - `needs_review` — evidence exists but confidence is below threshold, or conflicting values were found across pages
+  - `unknown` — no page provided any evidence for this field
+- Flags contradictory extractions (different values from different pages) as `needs_review` with a reason
+
+**Post-processing**
+
+- Normalization: phone numbers, addresses, canonical company name formatting
+- Schema constraint validation: regex, min/max length, enum membership
 
 **Output data model**
 
@@ -322,21 +340,29 @@ Vercel Workflow turns async functions into durable workflows with directives and
    - Fetch `robots.txt`, sitemap; choose up to N pages
 
 3. **Fetch pages**
-   - Rate limited; store raw + extracted text artifacts
+   - Rate limited; store raw HTML snapshots
 
-4. **Classify pages**
-   - Tag pages (about/pricing/contact/security/etc.)
+4. **Extract text**
+   - Strip HTML to clean text + metadata (title, headings, meta description)
 
-5. **Extract fields**
-   - LLM call with schema + selected page excerpts
-   - Require citations for each field
+5. **Extract fields per page**
+   - LLM call per page: full schema + single page's extracted text
+   - Permissive extraction — extract on partial/weak evidence with low confidence threshold
+   - Every value must cite the current page
 
-6. **Validate + normalize**
-   - Ensure JSON schema compliance; set unknown/needs_review
+6. **Synthesize fields**
+   - Deterministic merge of all per-page extraction results
+   - Pick best value per field (highest confidence, most citations)
+   - Combine citations when multiple pages support the same field
+   - Apply `sourceHints` as confidence boost signal
+   - Apply `confidenceThreshold` quality gate → assign `auto` / `needs_review` / `unknown`
+   - Flag conflicting values as `needs_review`
 
-7. **Persist draft**
-8. **Notify**
-   - Email / webhook “draft ready” (optional)
+7. **Validate + normalize**
+   - Enforce schema constraints (regex, min/max, enum); normalize formatting
+
+8. **Persist draft + notify**
+   - Write `SubmissionDraft` to database; send "draft ready" notification (email/webhook, optional)
 
 ### Reliability requirements
 

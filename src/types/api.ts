@@ -143,6 +143,17 @@ export const createSchemaVersionRequestSchema = z.object({
 
 export type CreateSchemaVersionRequest = z.infer<typeof createSchemaVersionRequestSchema>;
 
+// --- Submissions ---
+
+export const createSubmissionRequestSchema = z.object({
+  schemaId: z.string().uuid(),
+  schemaVersion: z.number().int().positive().optional(),
+  websiteUrl: z.string().url(),
+  customerMeta: z.record(z.unknown()).optional(),
+});
+
+export type CreateSubmissionRequest = z.infer<typeof createSubmissionRequestSchema>;
+
 // --- Health ---
 
 export const healthResponseSchema = z.object({

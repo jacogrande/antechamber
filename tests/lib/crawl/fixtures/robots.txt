@@ -1,0 +1,11 @@
+User-agent: OnboardingBot/1.0
+Disallow: /admin
+Disallow: /private/
+Allow: /private/public-page
+Crawl-delay: 2
+
+User-agent: *
+Disallow: /secret
+
+Sitemap: https://example.com/sitemap.xml
+Sitemap: https://example.com/sitemap-blog.xml
