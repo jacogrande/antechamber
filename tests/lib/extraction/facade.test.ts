@@ -6,9 +6,7 @@ import {
   makeFieldDefinition,
   makeExtractedContent,
 } from './helpers';
-import multiFieldResponse from './fixtures/llm-response-multi-field.json';
 import basicResponse from './fixtures/llm-response-basic.json';
-import partialResponse from './fixtures/llm-response-partial.json';
 
 describe('extractAndSynthesize', () => {
   test('end-to-end happy path: 2 pages, 3 fields', async () => {

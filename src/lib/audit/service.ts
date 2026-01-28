@@ -1,6 +1,6 @@
 import type { Database } from '@/db/client';
 import { auditLogs } from '@/db/schema';
-import type { AuditEntry, AuditEventType, AuditResourceType, EditHistoryEntry } from './types';
+import type { AuditEntry } from './types';
 
 export class AuditService {
   constructor(private db: Database) {}

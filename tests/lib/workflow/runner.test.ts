@@ -6,7 +6,6 @@ import type {
   WorkflowDefinition,
   StepDefinition,
   StepRecord,
-  WorkflowContext,
 } from '../../../src/lib/workflow/types';
 
 // ---------------------------------------------------------------------------
@@ -39,9 +38,9 @@ function createStubDb(initialRun?: Partial<WorkflowRunRow>) {
 
   // Minimal mock of drizzle query builder
   const db = {
-    update: (table: any) => ({
-      set: (values: any) => ({
-        where: (condition: any) => {
+    update: () => ({
+      set: (values: Partial<WorkflowRunRow>) => ({
+        where: () => {
           // Extract the run ID from the condition (we just use the first run)
           const runId = Array.from(runs.keys())[0];
           if (runId && runs.has(runId)) {
@@ -57,9 +56,9 @@ function createStubDb(initialRun?: Partial<WorkflowRunRow>) {
         },
       }),
     }),
-    select: (fields?: any) => ({
-      from: (table: any) => ({
-        where: (condition: any) => {
+    select: () => ({
+      from: () => ({
+        where: () => {
           const runId = Array.from(runs.keys())[0];
           if (runId && runs.has(runId)) {
             return Promise.resolve([runs.get(runId)!]);
@@ -69,7 +68,7 @@ function createStubDb(initialRun?: Partial<WorkflowRunRow>) {
       }),
     }),
     _runs: runs,
-  } as any;
+  } as unknown as WorkflowDeps['db'] & { _runs: Map<string, WorkflowRunRow> };
 
   return db;
 }

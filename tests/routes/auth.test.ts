@@ -1,6 +1,5 @@
-import { describe, it, expect, mock, beforeEach } from 'bun:test';
+import { describe, it, expect } from 'bun:test';
 import { Hono } from 'hono';
-import { z } from 'zod';
 import { loginRequestSchema } from '../../src/types/api';
 import { errorHandler } from '../../src/middleware/error-handler';
 import { ValidationError, UnauthorizedError } from '../../src/lib/errors';

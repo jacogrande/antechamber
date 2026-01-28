@@ -196,7 +196,7 @@ describe('fetchPages', () => {
       maxConcurrent = Math.max(maxConcurrent, concurrent);
       await new Promise((resolve) => setTimeout(resolve, 10));
       concurrent--;
-      const url = typeof input === 'string' ? input : input.toString();
+      void (typeof input === 'string' ? input : input.toString());
       return new Response(htmlBody, {
         status: 200,
         headers: { 'content-type': 'text/html' },

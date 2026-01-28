@@ -127,7 +127,7 @@ describe('buildExtractionTool', () => {
       makeFieldDefinition({ key: 'phone' }),
     ];
     const tool = buildExtractionTool(fields);
-    const schema = tool.input_schema as Record<string, unknown>;
+    const schema = tool.input_schema;
     const props = schema.properties as Record<string, unknown>;
     const extractions = props.extractions as Record<string, unknown>;
     const items = extractions.items as Record<string, unknown>;
@@ -139,7 +139,7 @@ describe('buildExtractionTool', () => {
 
   test('tool schema requires extractions array', () => {
     const tool = buildExtractionTool([makeFieldDefinition()]);
-    const schema = tool.input_schema as Record<string, unknown>;
+    const schema = tool.input_schema;
     expect(schema.required).toEqual(['extractions']);
   });
 });

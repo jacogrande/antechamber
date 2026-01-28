@@ -6,7 +6,7 @@ import {
   discoverPages,
   generateHeuristicUrls,
 } from '@/lib/crawl/sitemap';
-import type { RobotsResult, CrawlConfig } from '@/lib/crawl/types';
+import type { RobotsResult } from '@/lib/crawl/types';
 import { DEFAULT_CRAWL_CONFIG } from '@/lib/crawl/types';
 import { createStubFetch } from './helpers';
 
@@ -33,7 +33,6 @@ function permissiveRobots(sitemapUrls: string[] = []): RobotsResult {
 describe('parseSitemap', () => {
   it('parses <urlset> and returns same-origin URLs', async () => {
     const urls = await parseSitemap(
-      'https://example.com/sitemap.xml',
       sitemapXml,
       'https://example.com',
     );
@@ -45,7 +44,6 @@ describe('parseSitemap', () => {
 
   it('filters out other-origin URLs', async () => {
     const urls = await parseSitemap(
-      'https://example.com/sitemap.xml',
       sitemapXml,
       'https://example.com',
     );
@@ -78,9 +76,9 @@ describe('parseSitemap', () => {
     );
 
     const urls = await parseSitemap(
-      'https://example.com/sitemap-index.xml',
       sitemapIndexXml,
       'https://example.com',
+      DEFAULT_CRAWL_CONFIG,
       stubFetch,
     );
     expect(urls).toContain('https://example.com/page-a');
@@ -90,7 +88,6 @@ describe('parseSitemap', () => {
 
   it('handles malformed XML gracefully', async () => {
     const urls = await parseSitemap(
-      'https://example.com/sitemap.xml',
       'not valid xml <><><<',
       'https://example.com',
     );
@@ -102,7 +99,6 @@ describe('parseSitemap', () => {
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 </urlset>`;
     const urls = await parseSitemap(
-      'https://example.com/sitemap.xml',
       xml,
       'https://example.com',
     );
@@ -115,9 +111,9 @@ describe('parseSitemap', () => {
     }) as unknown as typeof fetch;
 
     const urls = await parseSitemap(
-      'https://example.com/sitemap-index.xml',
       sitemapIndexXml,
       'https://example.com',
+      DEFAULT_CRAWL_CONFIG,
       errorFetch,
     );
     // Should return empty rather than throw

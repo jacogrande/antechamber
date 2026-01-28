@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
-import type { LlmClient, LlmToolDefinition, LlmToolCallResult } from './types';
+import type { LlmClient } from './types';
 import { DEFAULT_MODEL } from './types';
 
 /**

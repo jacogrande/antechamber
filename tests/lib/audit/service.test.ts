@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'bun:test';
 import { AuditService } from '../../../src/lib/audit/service';
-import type { AuditEntry, EditHistoryEntry } from '../../../src/lib/audit/types';
+import type { AuditEntry } from '../../../src/lib/audit/types';
 
 /**
  * Audit service tests.

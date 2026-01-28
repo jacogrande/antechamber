@@ -18,7 +18,7 @@ export const authMiddleware = createMiddleware<AppEnv>(async (c, next) => {
     throw new UnauthorizedError('Invalid or expired token');
   }
 
-  const payload = c.get('jwtPayload') as Record<string, unknown>;
+  const payload = c.get('jwtPayload');
   const authId = payload.sub as string | undefined;
 
   if (!authId) {

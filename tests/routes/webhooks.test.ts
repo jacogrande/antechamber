@@ -32,7 +32,7 @@ function createWebhooksTestApp(options: {
   userId?: string;
 } = {}) {
   const tenantId = options.tenantId ?? 'tenant-1';
-  const userId = options.userId ?? 'user-1';
+  void (options.userId ?? 'user-1'); // Reserved for future auth context
   const storedWebhooks: StoredWebhook[] = options.webhooks ? [...options.webhooks] : [];
   const auditLogs: AuditLogEntry[] = [];
   let nextWebhookNum = storedWebhooks.length + 1;

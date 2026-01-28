@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { eq, and, max, sql } from 'drizzle-orm';
+import { eq, and, max } from 'drizzle-orm';
 import type { AppEnv } from '../index';
 import { getDb } from '../db/client';
 import { schemas, schemaVersions } from '../db/schema';

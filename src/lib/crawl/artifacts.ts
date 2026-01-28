@@ -1,4 +1,5 @@
 import { gzipSync, gunzipSync } from 'bun';
+import { z } from 'zod';
 import type {
   ArtifactKeys,
   ExtractedContent,
@@ -6,6 +7,20 @@ import type {
   StorageClient,
 } from './types';
 import { hashUrl } from './url';
+
+// ---------------------------------------------------------------------------
+// Validation schema for ExtractedContent
+// ---------------------------------------------------------------------------
+
+const extractedContentSchema = z.object({
+  url: z.string(),
+  title: z.string(),
+  metaDescription: z.string(),
+  headings: z.array(z.string()),
+  bodyText: z.string(),
+  wordCount: z.number(),
+  fetchedAt: z.string(),
+});
 
 // ---------------------------------------------------------------------------
 // Key generation
@@ -77,7 +92,13 @@ export async function loadExtractedContent(
   const keys = artifactKeys(runId, url);
   const data = await storage.get(keys.text);
   if (!data) return null;
-  return JSON.parse(data.toString('utf-8')) as ExtractedContent;
+
+  const parsed = JSON.parse(data.toString('utf-8')) as unknown;
+  const result = extractedContentSchema.safeParse(parsed);
+  if (!result.success) {
+    return null;
+  }
+  return result.data;
 }
 
 // ---------------------------------------------------------------------------

@@ -8,17 +8,38 @@ import type {
 import { DEFAULT_CRAWL_CONFIG } from './types';
 
 // ---------------------------------------------------------------------------
+// Extract URLs from a <urlset> element
+// ---------------------------------------------------------------------------
+
+function extractUrlsFromUrlset($: cheerio.CheerioAPI, origin: string): string[] {
+  const urls: string[] = [];
+  $('urlset > url > loc').each((_, el) => {
+    const loc = $(el).text().trim();
+    if (loc) {
+      try {
+        const parsed = new URL(loc);
+        if (parsed.origin === origin) {
+          urls.push(loc);
+        }
+      } catch {
+        // Skip malformed URLs
+      }
+    }
+  });
+  return urls;
+}
+
+// ---------------------------------------------------------------------------
 // Parse a sitemap XML document (urlset or sitemapindex)
 // ---------------------------------------------------------------------------
 
 export async function parseSitemap(
-  url: string,
   xml: string,
   origin: string,
+  config: CrawlConfig = DEFAULT_CRAWL_CONFIG,
   fetchFn: FetchFn = fetch,
 ): Promise<string[]> {
   const $ = cheerio.load(xml, { xmlMode: true });
-  const urls: string[] = [];
 
   // Handle <sitemapindex> — 1-level recursive fetch
   const sitemapLocs = $('sitemapindex > sitemap > loc');
@@ -29,13 +50,16 @@ export async function parseSitemap(
       if (loc) childUrls.push(loc);
     });
 
+    const urls: string[] = [];
     for (const childUrl of childUrls) {
       try {
-        const res = await fetchFn(childUrl);
+        const res = await fetchFn(childUrl, {
+          headers: { 'User-Agent': config.userAgent },
+        });
         if (res.ok) {
           const childXml = await res.text();
-          const childParsed = await parseChildSitemap(childXml, origin);
-          urls.push(...childParsed);
+          const child$ = cheerio.load(childXml, { xmlMode: true });
+          urls.push(...extractUrlsFromUrlset(child$, origin));
         }
       } catch {
         // Skip unreachable child sitemaps
@@ -46,46 +70,7 @@ export async function parseSitemap(
   }
 
   // Handle <urlset>
-  $('urlset > url > loc').each((_, el) => {
-    const loc = $(el).text().trim();
-    if (loc) {
-      try {
-        const parsed = new URL(loc);
-        if (parsed.origin === origin) {
-          urls.push(loc);
-        }
-      } catch {
-        // Skip malformed URLs
-      }
-    }
-  });
-
-  return urls;
-}
-
-// Parse a child sitemap (no further recursion)
-async function parseChildSitemap(
-  xml: string,
-  origin: string,
-): Promise<string[]> {
-  const $ = cheerio.load(xml, { xmlMode: true });
-  const urls: string[] = [];
-
-  $('urlset > url > loc').each((_, el) => {
-    const loc = $(el).text().trim();
-    if (loc) {
-      try {
-        const parsed = new URL(loc);
-        if (parsed.origin === origin) {
-          urls.push(loc);
-        }
-      } catch {
-        // Skip malformed URLs
-      }
-    }
-  });
-
-  return urls;
+  return extractUrlsFromUrlset($, origin);
 }
 
 // ---------------------------------------------------------------------------
@@ -122,10 +107,12 @@ export async function discoverPages(
 
   for (const sitemapUrl of sitemapSources) {
     try {
-      const res = await fetchFn(sitemapUrl);
+      const res = await fetchFn(sitemapUrl, {
+        headers: { 'User-Agent': config.userAgent },
+      });
       if (res.ok) {
         const xml = await res.text();
-        const urls = await parseSitemap(sitemapUrl, xml, origin, fetchFn);
+        const urls = await parseSitemap(xml, origin, config, fetchFn);
         sitemapUrls.push(...urls);
       }
     } catch {
@@ -136,7 +123,7 @@ export async function discoverPages(
   let pages: DiscoveredPage[];
 
   if (sitemapUrls.length > 0) {
-    // Deduplicate sitemap URLs
+    // Deduplicate sitemap URLs and convert to DiscoveredPage
     const seen = new Set<string>();
     pages = [];
     for (const url of sitemapUrls) {
@@ -146,32 +133,14 @@ export async function discoverPages(
       }
     }
   } else {
-    // Heuristic fallback
+    // Heuristic fallback (already unique by construction)
     pages = generateHeuristicUrls(origin, config.heuristicPaths);
   }
 
-  // Deduplicate (sitemap pages might overlap with heuristic)
-  const uniquePages = deduplicatePages(pages);
-
   // Sort by priority (lower = higher priority)
-  uniquePages.sort((a, b) => a.priority - b.priority);
+  pages.sort((a, b) => a.priority - b.priority);
 
   // Limit to maxPages
-  return uniquePages.slice(0, config.maxPages);
+  return pages.slice(0, config.maxPages);
 }
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function deduplicatePages(pages: DiscoveredPage[]): DiscoveredPage[] {
-  const seen = new Set<string>();
-  const result: DiscoveredPage[] = [];
-  for (const page of pages) {
-    if (!seen.has(page.url)) {
-      seen.add(page.url);
-      result.push(page);
-    }
-  }
-  return result;
-}

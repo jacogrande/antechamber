@@ -6,7 +6,7 @@ import {
   persistDraftStep,
   generateOnboardingDraft,
 } from '../../../src/lib/workflow/steps';
-import type { WorkflowContext, StepRecord } from '../../../src/lib/workflow/types';
+import type { WorkflowContext } from '../../../src/lib/workflow/types';
 import type { FieldDefinition, ExtractedFieldValue } from '../../../src/types/domain';
 import { submissions, schemas, schemaVersions } from '../../../src/db/schema';
 
@@ -91,8 +91,8 @@ function createStubDb(opts: {
 
   const db = {
     select: () => ({
-      from: (table: any) => ({
-        where: (...conditions: any[]) => {
+      from: (table: unknown) => ({
+        where: () => {
           // Match by reference to actual Drizzle table objects
           if (table === submissions) {
             return Promise.resolve(opts.submission ? [opts.submission] : []);
@@ -107,15 +107,15 @@ function createStubDb(opts: {
         },
       }),
     }),
-    update: (table: any) => ({
-      set: (values: any) => ({
-        where: (...conditions: any[]) => {
+    update: () => ({
+      set: (values: Record<string, unknown>) => ({
+        where: () => {
           updatedSubmissions.push(values);
           return Promise.resolve();
         },
       }),
     }),
-  } as any;
+  } as unknown as WorkflowContext['db'];
 
   return db;
 }
@@ -237,7 +237,7 @@ describe('crawl step', () => {
     }
 
     // Verify it read validate output correctly
-    expect(ctx.getStepOutput('validate') as unknown).toBe(validateOutput);
+    expect(ctx.getStepOutput<typeof validateOutput>('validate')).toEqual(validateOutput);
   });
 });
 

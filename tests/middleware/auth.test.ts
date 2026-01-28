@@ -1,9 +1,9 @@
-import { describe, it, expect, beforeAll } from 'bun:test';
+import { describe, it, expect } from 'bun:test';
 import { Hono } from 'hono';
 import { jwt } from 'hono/jwt';
 import { sign } from 'hono/utils/jwt/jwt';
 import { errorHandler } from '../../src/middleware/error-handler';
-import { AppError, UnauthorizedError } from '../../src/lib/errors';
+import { UnauthorizedError } from '../../src/lib/errors';
 
 const JWT_SECRET = 'test-secret-that-is-long-enough-for-hs256';
 
@@ -38,7 +38,7 @@ function createJwtTestApp() {
       throw new UnauthorizedError('Invalid or expired token');
     }
 
-    const payload = c.get('jwtPayload') as Record<string, unknown>;
+    const payload = c.get('jwtPayload');
     const sub = payload.sub as string | undefined;
     if (!sub) {
       throw new UnauthorizedError('Token missing subject');

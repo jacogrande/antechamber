@@ -99,7 +99,6 @@ export async function fetchPages(
   fetchFn: FetchFn = fetch,
 ): Promise<FetchedPage[]> {
   const sem = new Semaphore(config.concurrency);
-  const results: FetchedPage[] = [];
 
   // Respect robots crawl delay if it's larger than config delay
   const delayMs = Math.max(
@@ -107,22 +106,25 @@ export async function fetchPages(
     robots.crawlDelayMs ?? 0,
   );
 
-  const tasks = pages.map(async (page) => {
-    // Skip robots-disallowed URLs
-    if (!robots.isAllowed(page.url)) return;
+  const results = await Promise.all(
+    pages.map(async (page): Promise<FetchedPage | null> => {
+      // Skip robots-disallowed URLs
+      if (!robots.isAllowed(page.url)) return null;
 
-    await sem.acquire();
-    try {
-      const result = await fetchPage(page.url, config, fetchFn);
-      if (result) results.push(result);
+      await sem.acquire();
+      try {
+        const result = await fetchPage(page.url, config, fetchFn);
 
-      // Rate-limit: wait between requests
-      await sleep(delayMs);
-    } finally {
-      sem.release();
-    }
-  });
+        // Rate-limit: wait between requests
+        await sleep(delayMs);
 
-  await Promise.all(tasks);
-  return results;
+        return result;
+      } finally {
+        sem.release();
+      }
+    }),
+  );
+
+  // Filter out nulls (skipped or failed fetches)
+  return results.filter((r): r is FetchedPage => r !== null);
 }

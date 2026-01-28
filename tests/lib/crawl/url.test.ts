@@ -2,7 +2,7 @@ import { describe, it, expect, mock } from 'bun:test';
 import { ValidationError } from '@/lib/errors';
 
 // Mock DNS to avoid real network calls in tests
-mock.module('node:dns', () => ({
+void mock.module('node:dns', () => ({
   promises: {
     lookup: async (hostname: string) => {
       if (hostname === 'unresolvable.invalid') {

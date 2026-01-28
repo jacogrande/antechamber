@@ -85,7 +85,7 @@ export const fieldDefinitionSchema = z
         try {
           new RegExp(f.validation.regex);
           return true;
-        } catch (e) {
+        } catch {
           return false;
         }
       }

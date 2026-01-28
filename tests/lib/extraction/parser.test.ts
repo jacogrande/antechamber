@@ -2,7 +2,6 @@ import { describe, test, expect } from 'bun:test';
 import { parseExtractionResult, coerceValue } from '@/lib/extraction/parser';
 import { makeFieldDefinition } from './helpers';
 import basicResponse from './fixtures/llm-response-basic.json';
-import multiFieldResponse from './fixtures/llm-response-multi-field.json';
 import partialResponse from './fixtures/llm-response-partial.json';
 import malformedResponse from './fixtures/llm-response-malformed.json';
 

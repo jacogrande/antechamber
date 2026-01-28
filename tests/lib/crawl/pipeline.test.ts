@@ -51,7 +51,7 @@ function buildResponses() {
 import { mock } from 'bun:test';
 
 // Mock the dns module to avoid real DNS lookups
-mock.module('node:dns', () => ({
+void mock.module('node:dns', () => ({
   promises: {
     lookup: async (hostname: string) => {
       // Return a public IP for allowed hosts, private for blocked
