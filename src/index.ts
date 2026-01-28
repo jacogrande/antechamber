@@ -4,6 +4,7 @@ import { authMiddleware } from './middleware/auth';
 import { tenantMiddleware } from './middleware/tenant';
 import health from './routes/health';
 import auth from './routes/auth';
+import schemas from './routes/schemas';
 
 export type AppEnv = {
   Variables: {
@@ -37,5 +38,6 @@ app.use('/api/webhooks/*', tenantMiddleware);
 
 // API routes (auth routes include both login and logout)
 app.route('/', auth);
+app.route('/', schemas);
 
 export default app;

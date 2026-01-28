@@ -37,3 +37,10 @@ export class ValidationError extends AppError {
     this.name = 'ValidationError';
   }
 }
+
+export class ConflictError extends AppError {
+  constructor(message = 'Conflict') {
+    super('CONFLICT', message, 409);
+    this.name = 'ConflictError';
+  }
+}
