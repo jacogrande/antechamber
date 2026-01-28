@@ -122,23 +122,26 @@ Wire phases 3 and 4 together into a durable Vercel Workflow, triggered by the su
 
 ---
 
-## Phase 6: Review, Export & Audit
+## Phase 6: Review, Export & Audit ✅
 
 Build the customer-facing confirmation flow, data export, and audit trail — the last mile that turns a draft into confirmed, exported data.
 
-- [ ] `POST /api/submissions/:submissionId/confirm` — accepts customer edits (field overrides with `status: "user_edited"`), writes `SubmissionConfirmed` record
-- [ ] Customer review UI: display extracted values with inline citations, allow edits with "mark as corrected", surface unknown/needs_review fields prominently, confirm button
-- [ ] Webhook system:
+- [x] `POST /api/submissions/:submissionId/confirm` — accepts customer edits (field overrides with `status: "user_edited"`), writes `SubmissionConfirmed` record
+- [ ] Customer review UI: display extracted values with inline citations, allow edits with "mark as corrected", surface unknown/needs_review fields prominently, confirm button *(frontend — out of scope for backend MVP)*
+- [x] Webhook system:
   - `POST /api/webhooks` — register endpoint URL + secret per tenant
   - On confirm: deliver signed `POST` payload to registered endpoints
   - At-least-once delivery with retry (exponential backoff)
-- [ ] `GET /api/submissions/:submissionId/artifacts` — return links to stored crawl snapshots + extracted text
-- [ ] CSV export of confirmed submission data
-- [ ] `GET /api/submissions/:submissionId/context-pack` — return `context.json` + `sources[]` bundle
-- [ ] Audit log: record schema changes, submission creation, field edits (who, when, old/new value, source), confirm events, webhook deliveries
-- [ ] Tests: confirm flow (with and without edits), webhook delivery + signature verification, CSV export formatting, audit log completeness
+  - `POST /api/cron/webhooks` — cron endpoint for processing pending deliveries
+- [x] `GET /api/submissions/:submissionId/artifacts` — return signed URLs to stored crawl snapshots
+- [x] CSV export of confirmed submission data (`GET /api/submissions/:submissionId/export/csv`)
+- [x] `GET /api/submissions/:submissionId/context-pack` — return `context.json` + `sources[]` bundle
+- [x] Audit log: record schema changes, submission creation, field edits (who, when, old/new value, source), confirm events, webhook deliveries
+- [x] Tests: confirm flow (with and without edits), webhook delivery + signature verification, CSV export formatting, audit log completeness (44 new tests, 440 total)
 
 **Exit criteria:** A customer can review a draft, edit fields, confirm, and the confirmed data is exported via webhook and accessible via API. All mutations are audit-logged. The full journey from schema creation → URL submission → draft → review → confirm → export works end-to-end.
+
+**Commit:** `5e702f1` — Add Phase 6: Review, Export & Audit
 
 ---
 
