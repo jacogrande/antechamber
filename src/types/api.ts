@@ -154,6 +154,90 @@ export const createSubmissionRequestSchema = z.object({
 
 export type CreateSubmissionRequest = z.infer<typeof createSubmissionRequestSchema>;
 
+// --- Confirm Submission ---
+
+export const fieldEditSchema = z.object({
+  fieldKey: z.string(),
+  value: z.unknown(),
+});
+
+export type FieldEdit = z.infer<typeof fieldEditSchema>;
+
+export const confirmSubmissionRequestSchema = z.object({
+  edits: z.array(fieldEditSchema).optional(),
+  confirmedBy: z.enum(['customer', 'internal']),
+});
+
+export type ConfirmSubmissionRequest = z.infer<typeof confirmSubmissionRequestSchema>;
+
+// --- Webhooks ---
+
+export const webhookEventTypeSchema = z.enum(['submission.confirmed']);
+export type WebhookEventType = z.infer<typeof webhookEventTypeSchema>;
+
+export const registerWebhookRequestSchema = z.object({
+  endpointUrl: z.string().url().startsWith('https://'),
+  events: z.array(webhookEventTypeSchema).min(1),
+});
+
+export type RegisterWebhookRequest = z.infer<typeof registerWebhookRequestSchema>;
+
+export const webhookResponseSchema = z.object({
+  id: z.string().uuid(),
+  endpointUrl: z.string().url(),
+  events: z.array(webhookEventTypeSchema),
+  isActive: z.boolean(),
+  createdAt: z.string(),
+});
+
+export type WebhookResponse = z.infer<typeof webhookResponseSchema>;
+
+// --- Context Pack ---
+
+export const contextPackSourceSchema = z.object({
+  url: z.string(),
+  title: z.string(),
+  retrievedAt: z.string(),
+  snippets: z.array(z.string()),
+});
+
+export type ContextPackSource = z.infer<typeof contextPackSourceSchema>;
+
+export const contextPackResponseSchema = z.object({
+  context: z.object({
+    submissionId: z.string().uuid(),
+    websiteUrl: z.string(),
+    schemaId: z.string().uuid(),
+    schemaVersion: z.number(),
+    fields: z.record(z.unknown()),
+    confirmedAt: z.string(),
+  }),
+  sources: z.array(contextPackSourceSchema),
+  metadata: z.object({
+    generatedAt: z.string(),
+    version: z.string(),
+  }),
+});
+
+export type ContextPackResponse = z.infer<typeof contextPackResponseSchema>;
+
+// --- Artifacts ---
+
+export const artifactSchema = z.object({
+  url: z.string(),
+  type: z.enum(['raw_html', 'extracted_text']),
+  signedUrl: z.string(),
+  expiresAt: z.string(),
+});
+
+export type Artifact = z.infer<typeof artifactSchema>;
+
+export const artifactsResponseSchema = z.object({
+  artifacts: z.array(artifactSchema),
+});
+
+export type ArtifactsResponse = z.infer<typeof artifactsResponseSchema>;
+
 // --- Health ---
 
 export const healthResponseSchema = z.object({

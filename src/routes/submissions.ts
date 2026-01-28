@@ -3,20 +3,51 @@ import { eq, and, max, desc } from 'drizzle-orm';
 import { z } from 'zod';
 import type { AppEnv } from '../index';
 import { getDb } from '../db/client';
-import { submissions, schemas, schemaVersions, workflowRuns } from '../db/schema';
-import { createSubmissionRequestSchema } from '../types/api';
+import { submissions, schemas, schemaVersions, workflowRuns, webhooks } from '../db/schema';
+import { createSubmissionRequestSchema, confirmSubmissionRequestSchema } from '../types/api';
+import type { FieldDefinition } from '../types/api';
 import { ValidationError, NotFoundError } from '../lib/errors';
 import { WorkflowRunner } from '../lib/workflow/runner';
 import { generateOnboardingDraft } from '../lib/workflow/steps';
 import type { WorkflowDeps } from '../lib/workflow/types';
 import type { StepRecord } from '../lib/workflow/types';
+import { AuditService } from '../lib/audit';
+import type { EditHistoryEntry } from '../lib/audit';
+import { WebhookDeliveryService } from '../lib/webhooks';
+import type { WebhookPayload } from '../lib/webhooks';
+import { generateCsv } from '../lib/export/csv';
+import { generateContextPack } from '../lib/export/context-pack';
+
+// ---------------------------------------------------------------------------
+// Route dependencies - extends workflow deps with route-specific services
+// ---------------------------------------------------------------------------
+
+export interface SubmissionsRouteDeps extends Partial<WorkflowDeps> {
+  auditService?: AuditService;
+  webhookService?: WebhookDeliveryService;
+}
 
 // ---------------------------------------------------------------------------
 // Factory: creates the submissions route with injected dependencies.
 // In production, pass real deps. In tests, pass stubs.
 // ---------------------------------------------------------------------------
 
-export function createSubmissionsRoute(depsOverride?: Partial<WorkflowDeps>) {
+export function createSubmissionsRoute(depsOverride?: SubmissionsRouteDeps) {
+  // Create services once per route instance (not per request)
+  let _auditService: AuditService | undefined;
+  let _webhookService: WebhookDeliveryService | undefined;
+
+  const getAuditService = (db: ReturnType<typeof getDb>): AuditService => {
+    if (depsOverride?.auditService) return depsOverride.auditService;
+    if (!_auditService) _auditService = new AuditService(db);
+    return _auditService;
+  };
+
+  const getWebhookService = (db: ReturnType<typeof getDb>): WebhookDeliveryService => {
+    if (depsOverride?.webhookService) return depsOverride.webhookService;
+    if (!_webhookService) _webhookService = new WebhookDeliveryService(db, fetch);
+    return _webhookService;
+  };
   const route = new Hono<AppEnv>();
 
   route.post('/api/submissions', async (c) => {
@@ -202,6 +233,412 @@ export function createSubmissionsRoute(depsOverride?: Partial<WorkflowDeps>) {
           }
         : null,
     });
+  });
+
+  // POST /api/submissions/:submissionId/confirm
+  route.post('/api/submissions/:submissionId/confirm', async (c) => {
+    const submissionId = c.req.param('submissionId');
+
+    // Validate UUID format
+    const uuidResult = z.string().uuid().safeParse(submissionId);
+    if (!uuidResult.success) {
+      throw new ValidationError('Invalid submission ID format');
+    }
+
+    const body = await c.req.json();
+    const parsed = confirmSubmissionRequestSchema.safeParse(body);
+    if (!parsed.success) {
+      throw new ValidationError('Invalid request body', parsed.error.flatten());
+    }
+
+    const tenantId = c.get('tenantId');
+    const userId = c.get('user')?.id;
+    const db = depsOverride?.db ?? getDb();
+
+    // Load submission
+    const [submission] = await db
+      .select()
+      .from(submissions)
+      .where(and(eq(submissions.id, submissionId), eq(submissions.tenantId, tenantId)));
+
+    if (!submission) {
+      throw new NotFoundError('Submission not found');
+    }
+
+    // Must be in draft status to confirm
+    if (submission.status !== 'draft') {
+      throw new ValidationError('Submission must be in draft status to confirm');
+    }
+
+    const audit = getAuditService(db);
+    const fields = (submission.fields as Array<{
+      key: string;
+      value: unknown;
+      confidence?: number;
+      citations?: unknown[];
+      status?: string;
+    }>) ?? [];
+
+    // Track edit history
+    const editHistory: EditHistoryEntry[] = (submission.editHistory as EditHistoryEntry[]) ?? [];
+    const now = new Date().toISOString();
+
+    // Apply edits if provided
+    if (parsed.data.edits && parsed.data.edits.length > 0) {
+      // Load schema version for validation
+      const [version] = await db
+        .select()
+        .from(schemaVersions)
+        .where(
+          and(
+            eq(schemaVersions.schemaId, submission.schemaId),
+            eq(schemaVersions.version, submission.schemaVersion),
+          ),
+        );
+
+      const fieldDefs = (version?.fields as FieldDefinition[]) ?? [];
+      const fieldDefMap = new Map(fieldDefs.map((f) => [f.key, f]));
+
+      for (const edit of parsed.data.edits) {
+        // Validate field exists in schema
+        const fieldDef = fieldDefMap.get(edit.fieldKey);
+        if (!fieldDef) {
+          throw new ValidationError(`Unknown field key: ${edit.fieldKey}`);
+        }
+
+        // Find or create field
+        const fieldIndex = fields.findIndex((f) => f.key === edit.fieldKey);
+        const oldValue = fieldIndex >= 0 ? fields[fieldIndex].value : undefined;
+
+        if (fieldIndex >= 0) {
+          fields[fieldIndex].value = edit.value;
+          fields[fieldIndex].status = 'user_edited';
+        } else {
+          fields.push({
+            key: edit.fieldKey,
+            value: edit.value,
+            status: 'user_edited',
+          });
+        }
+
+        // Record edit history
+        editHistory.push({
+          fieldKey: edit.fieldKey,
+          oldValue,
+          newValue: edit.value,
+          editedAt: now,
+          editedBy: userId ?? 'unknown',
+        });
+
+        // Audit log
+        await audit.logFieldEdited(
+          tenantId,
+          submissionId,
+          userId,
+          edit.fieldKey,
+          oldValue,
+          edit.value,
+        );
+      }
+    }
+
+    // Update submission to confirmed
+    const confirmedAt = new Date();
+    await db
+      .update(submissions)
+      .set({
+        status: 'confirmed',
+        confirmedBy: parsed.data.confirmedBy,
+        confirmedAt,
+        fields,
+        editHistory,
+        updatedAt: confirmedAt,
+      })
+      .where(eq(submissions.id, submissionId));
+
+    // Audit log confirmation
+    await audit.logSubmissionConfirmed(
+      tenantId,
+      submissionId,
+      userId,
+      parsed.data.confirmedBy,
+    );
+
+    // Queue webhook deliveries
+    const activeWebhooks = await db
+      .select()
+      .from(webhooks)
+      .where(and(eq(webhooks.tenantId, tenantId), eq(webhooks.isActive, true)));
+
+    const webhookService = getWebhookService(db);
+    let webhooksQueued = 0;
+
+    // Build webhook payload
+    const webhookPayload: WebhookPayload = {
+      event: 'submission.confirmed',
+      submissionId,
+      tenantId,
+      submission: {
+        id: submissionId,
+        schemaId: submission.schemaId,
+        schemaVersion: submission.schemaVersion,
+        websiteUrl: submission.websiteUrl,
+        status: 'confirmed',
+        fields,
+        confirmedAt: confirmedAt.toISOString(),
+        confirmedBy: parsed.data.confirmedBy,
+      },
+      artifacts: {
+        crawledPages: [],
+        htmlSnapshotKeys: [],
+      },
+    };
+
+    // Load artifacts from workflow
+    const [latestRun] = await db
+      .select()
+      .from(workflowRuns)
+      .where(eq(workflowRuns.submissionId, submissionId))
+      .orderBy(desc(workflowRuns.createdAt))
+      .limit(1);
+
+    if (latestRun) {
+      const steps = (latestRun.steps as StepRecord[]) ?? [];
+      const crawlStep = steps.find((s) => s.name === 'crawl');
+      if (crawlStep?.output) {
+        const output = crawlStep.output as {
+          pages?: Array<{ url: string }>;
+          artifactKeys?: string[];
+        };
+        webhookPayload.artifacts.crawledPages = output.pages?.map((p) => p.url) ?? [];
+        webhookPayload.artifacts.htmlSnapshotKeys = output.artifactKeys ?? [];
+      }
+    }
+
+    // Queue for webhooks that have submission.confirmed event
+    for (const webhook of activeWebhooks) {
+      if (webhook.events?.includes('submission.confirmed')) {
+        await webhookService.queueDelivery(
+          webhook.id,
+          submissionId,
+          'submission.confirmed',
+          webhookPayload,
+        );
+        webhooksQueued++;
+      }
+    }
+
+    return c.json({
+      submission: {
+        id: submissionId,
+        status: 'confirmed',
+        confirmedAt: confirmedAt.toISOString(),
+        confirmedBy: parsed.data.confirmedBy,
+        fields,
+        editHistory,
+      },
+      webhooksQueued,
+    });
+  });
+
+  // GET /api/submissions/:submissionId/artifacts
+  route.get('/api/submissions/:submissionId/artifacts', async (c) => {
+    const submissionId = c.req.param('submissionId');
+
+    // Validate UUID format
+    const uuidResult = z.string().uuid().safeParse(submissionId);
+    if (!uuidResult.success) {
+      throw new ValidationError('Invalid submission ID format');
+    }
+
+    const tenantId = c.get('tenantId');
+    const db = depsOverride?.db ?? getDb();
+    const storage = depsOverride?.storage;
+
+    // Load submission
+    const [submission] = await db
+      .select()
+      .from(submissions)
+      .where(and(eq(submissions.id, submissionId), eq(submissions.tenantId, tenantId)));
+
+    if (!submission) {
+      throw new NotFoundError('Submission not found');
+    }
+
+    // Load latest workflow run
+    const [latestRun] = await db
+      .select()
+      .from(workflowRuns)
+      .where(eq(workflowRuns.submissionId, submissionId))
+      .orderBy(desc(workflowRuns.createdAt))
+      .limit(1);
+
+    if (!latestRun || latestRun.status !== 'completed') {
+      throw new ValidationError('Workflow has not completed');
+    }
+
+    // Extract artifact keys from crawl step
+    const steps = (latestRun.steps as StepRecord[]) ?? [];
+    const crawlStep = steps.find((s) => s.name === 'crawl');
+    const output = crawlStep?.output as {
+      pages?: Array<{ url: string }>;
+      artifactKeys?: string[];
+    } | undefined;
+
+    const artifactKeys = output?.artifactKeys ?? [];
+    const pages = output?.pages ?? [];
+
+    // Generate signed URLs
+    const artifacts = await Promise.all(
+      artifactKeys.map(async (key, index) => {
+        const expiresInSec = 3600; // 1 hour
+        const signedUrl = storage
+          ? await storage.getSignedUrl(key, expiresInSec)
+          : `https://storage.local/${key}`;
+        const expiresAt = new Date(Date.now() + expiresInSec * 1000);
+
+        return {
+          url: pages[index]?.url ?? key,
+          type: key.endsWith('.html') ? 'raw_html' : 'extracted_text',
+          signedUrl,
+          expiresAt: expiresAt.toISOString(),
+        };
+      }),
+    );
+
+    return c.json({ artifacts });
+  });
+
+  // GET /api/submissions/:submissionId/export/csv
+  route.get('/api/submissions/:submissionId/export/csv', async (c) => {
+    const submissionId = c.req.param('submissionId');
+
+    // Validate UUID format
+    const uuidResult = z.string().uuid().safeParse(submissionId);
+    if (!uuidResult.success) {
+      throw new ValidationError('Invalid submission ID format');
+    }
+
+    const tenantId = c.get('tenantId');
+    const db = depsOverride?.db ?? getDb();
+
+    // Load submission
+    const [submission] = await db
+      .select()
+      .from(submissions)
+      .where(and(eq(submissions.id, submissionId), eq(submissions.tenantId, tenantId)));
+
+    if (!submission) {
+      throw new NotFoundError('Submission not found');
+    }
+
+    if (submission.status !== 'confirmed') {
+      throw new ValidationError('Submission must be confirmed to export');
+    }
+
+    // Load schema version
+    const [version] = await db
+      .select()
+      .from(schemaVersions)
+      .where(
+        and(
+          eq(schemaVersions.schemaId, submission.schemaId),
+          eq(schemaVersions.version, submission.schemaVersion),
+        ),
+      );
+
+    const fieldDefs = (version?.fields as FieldDefinition[]) ?? [];
+    const fields = (submission.fields as Array<{
+      key: string;
+      value: unknown;
+      citations?: Array<{ url?: string; snippet?: string }>;
+    }>) ?? [];
+
+    const csv = generateCsv(
+      {
+        id: submission.id,
+        websiteUrl: submission.websiteUrl,
+        fields,
+        confirmedAt: submission.confirmedAt?.toISOString() ?? new Date().toISOString(),
+        confirmedBy: submission.confirmedBy ?? 'unknown',
+      },
+      fieldDefs,
+    );
+
+    return c.body(csv, 200, {
+      'Content-Type': 'text/csv',
+      'Content-Disposition': `attachment; filename="submission-${submissionId}.csv"`,
+    });
+  });
+
+  // GET /api/submissions/:submissionId/context-pack
+  route.get('/api/submissions/:submissionId/context-pack', async (c) => {
+    const submissionId = c.req.param('submissionId');
+
+    // Validate UUID format
+    const uuidResult = z.string().uuid().safeParse(submissionId);
+    if (!uuidResult.success) {
+      throw new ValidationError('Invalid submission ID format');
+    }
+
+    const tenantId = c.get('tenantId');
+    const db = depsOverride?.db ?? getDb();
+
+    // Load submission
+    const [submission] = await db
+      .select()
+      .from(submissions)
+      .where(and(eq(submissions.id, submissionId), eq(submissions.tenantId, tenantId)));
+
+    if (!submission) {
+      throw new NotFoundError('Submission not found');
+    }
+
+    if (submission.status !== 'confirmed') {
+      throw new ValidationError('Submission must be confirmed to get context pack');
+    }
+
+    // Load artifacts from workflow
+    const [latestRun] = await db
+      .select()
+      .from(workflowRuns)
+      .where(eq(workflowRuns.submissionId, submissionId))
+      .orderBy(desc(workflowRuns.createdAt))
+      .limit(1);
+
+    const steps = (latestRun?.steps as StepRecord[]) ?? [];
+    const crawlStep = steps.find((s) => s.name === 'crawl');
+    const output = crawlStep?.output as {
+      pages?: Array<{ url: string; title?: string; fetchedAt?: string }>;
+    } | undefined;
+
+    const artifacts = (output?.pages ?? []).map((p) => ({
+      url: p.url,
+      title: p.title,
+      retrievedAt: p.fetchedAt ?? new Date().toISOString(),
+    }));
+
+    const fields = (submission.fields as Array<{
+      key: string;
+      value: unknown;
+      confidence?: number;
+      citations?: Array<{ url?: string; snippet?: string; title?: string }>;
+      status?: string;
+    }>) ?? [];
+
+    const contextPack = generateContextPack(
+      {
+        id: submission.id,
+        schemaId: submission.schemaId,
+        schemaVersion: submission.schemaVersion,
+        websiteUrl: submission.websiteUrl,
+        fields,
+        confirmedAt: submission.confirmedAt?.toISOString() ?? new Date().toISOString(),
+      },
+      artifacts,
+    );
+
+    return c.json(contextPack);
   });
 
   return route;

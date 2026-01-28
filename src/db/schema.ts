@@ -1,6 +1,19 @@
-import { pgTable, uuid, text, timestamp, unique, pgEnum, integer, jsonb } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, text, timestamp, unique, pgEnum, integer, jsonb, boolean } from 'drizzle-orm/pg-core';
 
 export const tenantRoleEnum = pgEnum('tenant_role', ['admin', 'editor', 'viewer']);
+
+export const deliveryStatusEnum = pgEnum('delivery_status', ['pending', 'success', 'failed']);
+
+export const auditEventEnum = pgEnum('audit_event', [
+  'schema.created',
+  'schema.version_created',
+  'submission.created',
+  'submission.confirmed',
+  'submission.field_edited',
+  'webhook.registered',
+  'webhook.delivery_succeeded',
+  'webhook.delivery_failed',
+]);
 
 export const tenants = pgTable('tenants', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -81,6 +94,7 @@ export const submissions = pgTable('submissions', {
   customerMeta: jsonb('customer_meta'),
   confirmedBy: text('confirmed_by'),
   confirmedAt: timestamp('confirmed_at', { withTimezone: true }),
+  editHistory: jsonb('edit_history'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
@@ -119,3 +133,50 @@ export const schemaVersions = pgTable(
   },
   (t) => [unique().on(t.schemaId, t.version)],
 );
+
+export const webhooks = pgTable('webhooks', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  tenantId: uuid('tenant_id')
+    .notNull()
+    .references(() => tenants.id),
+  endpointUrl: text('endpoint_url').notNull(),
+  secret: text('secret').notNull(),
+  events: text('events').array().notNull(),
+  isActive: boolean('is_active').notNull().default(true),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const webhookDeliveries = pgTable('webhook_deliveries', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  webhookId: uuid('webhook_id')
+    .notNull()
+    .references(() => webhooks.id),
+  submissionId: uuid('submission_id')
+    .notNull()
+    .references(() => submissions.id),
+  event: text('event').notNull(),
+  payload: jsonb('payload').notNull(),
+  status: deliveryStatusEnum('status').notNull().default('pending'),
+  attempts: integer('attempts').notNull().default(0),
+  lastAttemptAt: timestamp('last_attempt_at', { withTimezone: true }),
+  lastError: text('last_error'),
+  nextRetryAt: timestamp('next_retry_at', { withTimezone: true }),
+  completedAt: timestamp('completed_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const auditLogs = pgTable('audit_logs', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  tenantId: uuid('tenant_id')
+    .notNull()
+    .references(() => tenants.id),
+  userId: uuid('user_id').references(() => users.id),
+  event: auditEventEnum('event').notNull(),
+  resourceType: text('resource_type').notNull(),
+  resourceId: uuid('resource_id').notNull(),
+  details: jsonb('details'),
+  ipAddress: text('ip_address'),
+  userAgent: text('user_agent'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});

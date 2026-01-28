@@ -3,8 +3,11 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { errorHandler } from '../../src/middleware/error-handler';
 import { ValidationError, NotFoundError } from '../../src/lib/errors';
-import { createSubmissionRequestSchema } from '../../src/types/api';
+import { createSubmissionRequestSchema, confirmSubmissionRequestSchema } from '../../src/types/api';
+import type { FieldDefinition } from '../../src/types/api';
 import type { StepRecord } from '../../src/lib/workflow/types';
+import { generateCsv } from '../../src/lib/export/csv';
+import { generateContextPack } from '../../src/lib/export/context-pack';
 
 /**
  * Submission route tests.
@@ -37,8 +40,18 @@ interface StoredSubmission {
   customerMeta: unknown;
   confirmedBy: string | null;
   confirmedAt: string | null;
+  editHistory?: unknown;
   createdAt: string;
   updatedAt: string;
+}
+
+interface StoredWebhook {
+  id: string;
+  tenantId: string;
+  endpointUrl: string;
+  secret: string;
+  events: string[];
+  isActive: boolean;
 }
 
 interface StoredWorkflowRun {
@@ -57,6 +70,7 @@ function createSubmissionsTestApp(options: {
   versions?: StoredVersion[];
   submissions?: StoredSubmission[];
   workflowRuns?: StoredWorkflowRun[];
+  webhooks?: StoredWebhook[];
   tenantId?: string;
 } = {}) {
   const tenantId = options.tenantId ?? 'tenant-1';
@@ -68,6 +82,8 @@ function createSubmissionsTestApp(options: {
   const storedWorkflowRuns: StoredWorkflowRun[] = options.workflowRuns
     ? [...options.workflowRuns]
     : [];
+  const storedWebhooks: StoredWebhook[] = options.webhooks ? [...options.webhooks] : [];
+  let webhooksQueued = 0;
 
   // Generate valid UUIDs for new submissions/runs
   let nextSubNum = storedSubmissions.length + 1;
@@ -214,6 +230,245 @@ function createSubmissionsTestApp(options: {
           }
         : null,
     });
+  });
+
+  // POST /api/submissions/:submissionId/confirm
+  app.post('/api/submissions/:submissionId/confirm', async (c) => {
+    const submissionId = c.req.param('submissionId');
+
+    const uuidResult = z.string().uuid().safeParse(submissionId);
+    if (!uuidResult.success) {
+      throw new ValidationError('Invalid submission ID format');
+    }
+
+    const body = await c.req.json();
+    const parsed = confirmSubmissionRequestSchema.safeParse(body);
+    if (!parsed.success) {
+      throw new ValidationError('Invalid request body', parsed.error.flatten());
+    }
+
+    const submission = storedSubmissions.find(
+      (s) => s.id === submissionId && s.tenantId === tenantId,
+    );
+
+    if (!submission) {
+      throw new NotFoundError('Submission not found');
+    }
+
+    if (submission.status !== 'draft') {
+      throw new ValidationError('Submission must be in draft status to confirm');
+    }
+
+    const version = storedVersions.find(
+      (v) => v.schemaId === submission.schemaId && v.version === submission.schemaVersion,
+    );
+    const fieldDefs = (version?.fields as FieldDefinition[]) ?? [];
+    const fieldDefMap = new Map(fieldDefs.map((f) => [f.key, f]));
+
+    const fields = (submission.fields as Array<{ key: string; value: unknown; status?: string }>) ?? [];
+    const editHistory: Array<{ fieldKey: string; oldValue: unknown; newValue: unknown; editedAt: string; editedBy: string }> =
+      (submission.editHistory as any) ?? [];
+
+    // Apply edits
+    if (parsed.data.edits) {
+      for (const edit of parsed.data.edits) {
+        if (!fieldDefMap.has(edit.fieldKey)) {
+          throw new ValidationError(`Unknown field key: ${edit.fieldKey}`);
+        }
+
+        const fieldIndex = fields.findIndex((f) => f.key === edit.fieldKey);
+        const oldValue = fieldIndex >= 0 ? fields[fieldIndex].value : undefined;
+
+        if (fieldIndex >= 0) {
+          fields[fieldIndex].value = edit.value;
+          fields[fieldIndex].status = 'user_edited';
+        } else {
+          fields.push({ key: edit.fieldKey, value: edit.value, status: 'user_edited' });
+        }
+
+        editHistory.push({
+          fieldKey: edit.fieldKey,
+          oldValue,
+          newValue: edit.value,
+          editedAt: new Date().toISOString(),
+          editedBy: 'user-1',
+        });
+      }
+    }
+
+    const confirmedAt = new Date().toISOString();
+    submission.status = 'confirmed';
+    submission.confirmedBy = parsed.data.confirmedBy;
+    submission.confirmedAt = confirmedAt;
+    submission.fields = fields;
+    submission.editHistory = editHistory;
+
+    // Queue webhooks
+    const activeWebhooks = storedWebhooks.filter(
+      (w) => w.tenantId === tenantId && w.isActive && w.events.includes('submission.confirmed'),
+    );
+    webhooksQueued = activeWebhooks.length;
+
+    return c.json({
+      submission: {
+        id: submissionId,
+        status: 'confirmed',
+        confirmedAt,
+        confirmedBy: parsed.data.confirmedBy,
+        fields,
+        editHistory,
+      },
+      webhooksQueued,
+    });
+  });
+
+  // GET /api/submissions/:submissionId/artifacts
+  app.get('/api/submissions/:submissionId/artifacts', async (c) => {
+    const submissionId = c.req.param('submissionId');
+
+    const uuidResult = z.string().uuid().safeParse(submissionId);
+    if (!uuidResult.success) {
+      throw new ValidationError('Invalid submission ID format');
+    }
+
+    const submission = storedSubmissions.find(
+      (s) => s.id === submissionId && s.tenantId === tenantId,
+    );
+
+    if (!submission) {
+      throw new NotFoundError('Submission not found');
+    }
+
+    const latestRun = storedWorkflowRuns
+      .filter((r) => r.submissionId === submissionId)
+      .pop();
+
+    if (!latestRun || latestRun.status !== 'completed') {
+      throw new ValidationError('Workflow has not completed');
+    }
+
+    const steps = latestRun.steps ?? [];
+    const crawlStep = steps.find((s) => s.name === 'crawl');
+    const output = crawlStep?.output as {
+      pages?: Array<{ url: string }>;
+      artifactKeys?: string[];
+    } | undefined;
+
+    const artifactKeys = output?.artifactKeys ?? [];
+    const pages = output?.pages ?? [];
+
+    const artifacts = artifactKeys.map((key, index) => ({
+      url: pages[index]?.url ?? key,
+      type: key.endsWith('.html') ? 'raw_html' : 'extracted_text',
+      signedUrl: `https://stub-storage.local/${key}?expires=2025-01-01T01:00:00Z`,
+      expiresAt: '2025-01-01T01:00:00.000Z',
+    }));
+
+    return c.json({ artifacts });
+  });
+
+  // GET /api/submissions/:submissionId/export/csv
+  app.get('/api/submissions/:submissionId/export/csv', async (c) => {
+    const submissionId = c.req.param('submissionId');
+
+    const uuidResult = z.string().uuid().safeParse(submissionId);
+    if (!uuidResult.success) {
+      throw new ValidationError('Invalid submission ID format');
+    }
+
+    const submission = storedSubmissions.find(
+      (s) => s.id === submissionId && s.tenantId === tenantId,
+    );
+
+    if (!submission) {
+      throw new NotFoundError('Submission not found');
+    }
+
+    if (submission.status !== 'confirmed') {
+      throw new ValidationError('Submission must be confirmed to export');
+    }
+
+    const version = storedVersions.find(
+      (v) => v.schemaId === submission.schemaId && v.version === submission.schemaVersion,
+    );
+    const fieldDefs = (version?.fields as FieldDefinition[]) ?? [];
+    const fields = (submission.fields as Array<{ key: string; value: unknown; citations?: Array<{ url?: string; snippet?: string }> }>) ?? [];
+
+    const csv = generateCsv(
+      {
+        id: submission.id,
+        websiteUrl: submission.websiteUrl,
+        fields,
+        confirmedAt: submission.confirmedAt ?? new Date().toISOString(),
+        confirmedBy: submission.confirmedBy ?? 'unknown',
+      },
+      fieldDefs,
+    );
+
+    return c.body(csv, 200, {
+      'Content-Type': 'text/csv',
+      'Content-Disposition': `attachment; filename="submission-${submissionId}.csv"`,
+    });
+  });
+
+  // GET /api/submissions/:submissionId/context-pack
+  app.get('/api/submissions/:submissionId/context-pack', async (c) => {
+    const submissionId = c.req.param('submissionId');
+
+    const uuidResult = z.string().uuid().safeParse(submissionId);
+    if (!uuidResult.success) {
+      throw new ValidationError('Invalid submission ID format');
+    }
+
+    const submission = storedSubmissions.find(
+      (s) => s.id === submissionId && s.tenantId === tenantId,
+    );
+
+    if (!submission) {
+      throw new NotFoundError('Submission not found');
+    }
+
+    if (submission.status !== 'confirmed') {
+      throw new ValidationError('Submission must be confirmed to get context pack');
+    }
+
+    const latestRun = storedWorkflowRuns
+      .filter((r) => r.submissionId === submissionId)
+      .pop();
+
+    const steps = latestRun?.steps ?? [];
+    const crawlStep = steps.find((s) => s.name === 'crawl');
+    const output = crawlStep?.output as {
+      pages?: Array<{ url: string; title?: string; fetchedAt?: string }>;
+    } | undefined;
+
+    const artifacts = (output?.pages ?? []).map((p) => ({
+      url: p.url,
+      title: p.title,
+      retrievedAt: p.fetchedAt ?? new Date().toISOString(),
+    }));
+
+    const fields = (submission.fields as Array<{
+      key: string;
+      value: unknown;
+      confidence?: number;
+      citations?: Array<{ url?: string; snippet?: string; title?: string }>;
+      status?: string;
+    }>) ?? [];
+
+    const contextPack = generateContextPack(
+      {
+        id: submission.id,
+        schemaId: submission.schemaId,
+        schemaVersion: submission.schemaVersion,
+        websiteUrl: submission.websiteUrl,
+        fields,
+        confirmedAt: submission.confirmedAt ?? new Date().toISOString(),
+      },
+      artifacts,
+    );
+
+    return c.json(contextPack);
   });
 
   return app;
@@ -485,6 +740,367 @@ describe('GET /api/submissions/:submissionId', () => {
     });
 
     const res = await getSubmission(app, SUBMISSION_UUID);
+    expect(res.status).toBe(404);
+  });
+});
+
+// --- Additional helpers ---
+
+function confirmSubmission(app: Hono, submissionId: string, body: unknown) {
+  return app.request(`/api/submissions/${submissionId}/confirm`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
+
+function getArtifacts(app: Hono, submissionId: string) {
+  return app.request(`/api/submissions/${submissionId}/artifacts`);
+}
+
+function getCsv(app: Hono, submissionId: string) {
+  return app.request(`/api/submissions/${submissionId}/export/csv`);
+}
+
+function getContextPack(app: Hono, submissionId: string) {
+  return app.request(`/api/submissions/${submissionId}/context-pack`);
+}
+
+const CONFIRMED_SUBMISSION: StoredSubmission = {
+  id: '20000000-0000-0000-0000-000000000002',
+  tenantId: 'tenant-1',
+  schemaId: SCHEMA_UUID,
+  schemaVersion: 1,
+  websiteUrl: 'https://example.com',
+  status: 'confirmed',
+  fields: [
+    {
+      key: 'company_name',
+      value: 'Acme Corp',
+      confidence: 0.95,
+      citations: [{ url: 'https://example.com/about', snippet: 'Welcome to Acme Corp' }],
+      status: 'auto',
+    },
+  ],
+  customerMeta: null,
+  confirmedBy: 'customer',
+  confirmedAt: '2025-01-01T00:00:00.000Z',
+  createdAt: '2025-01-01T00:00:00.000Z',
+  updatedAt: '2025-01-01T00:00:00.000Z',
+};
+
+const WORKFLOW_WITH_CRAWL: StoredWorkflowRun = {
+  id: 'run-with-crawl',
+  submissionId: SUBMISSION_UUID,
+  workflowName: 'generate_onboarding_draft',
+  status: 'completed',
+  steps: [
+    {
+      name: 'crawl',
+      status: 'completed',
+      startedAt: '2025-01-01T00:00:00.000Z',
+      completedAt: '2025-01-01T00:00:01.000Z',
+      output: {
+        pages: [
+          { url: 'https://example.com', title: 'Home', fetchedAt: '2025-01-01T00:00:00.000Z' },
+          { url: 'https://example.com/about', title: 'About', fetchedAt: '2025-01-01T00:00:01.000Z' },
+        ],
+        artifactKeys: ['example.com/index.html', 'example.com/about.html'],
+      },
+      error: null,
+      attempts: 1,
+    },
+  ],
+  error: null,
+  startedAt: '2025-01-01T00:00:00.000Z',
+  completedAt: '2025-01-01T00:00:05.000Z',
+};
+
+// =====================
+// POST /api/submissions/:submissionId/confirm
+// =====================
+
+describe('POST /api/submissions/:submissionId/confirm', () => {
+  it('confirms draft submission → 200', async () => {
+    const app = createSubmissionsTestApp({
+      schemas: [EXISTING_SCHEMA],
+      versions: [EXISTING_VERSION],
+      submissions: [{ ...EXISTING_SUBMISSION }],
+      workflowRuns: [EXISTING_WORKFLOW_RUN],
+    });
+
+    const res = await confirmSubmission(app, SUBMISSION_UUID, {
+      confirmedBy: 'customer',
+    });
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.submission.status).toBe('confirmed');
+    expect(body.submission.confirmedBy).toBe('customer');
+    expect(body.submission.confirmedAt).toBeDefined();
+  });
+
+  it('rejects non-draft submission → 400', async () => {
+    const app = createSubmissionsTestApp({
+      schemas: [EXISTING_SCHEMA],
+      versions: [EXISTING_VERSION],
+      submissions: [CONFIRMED_SUBMISSION],
+      workflowRuns: [EXISTING_WORKFLOW_RUN],
+    });
+
+    const res = await confirmSubmission(app, CONFIRMED_SUBMISSION.id, {
+      confirmedBy: 'customer',
+    });
+
+    expect(res.status).toBe(400);
+  });
+
+  it('applies edits and records history', async () => {
+    const app = createSubmissionsTestApp({
+      schemas: [EXISTING_SCHEMA],
+      versions: [EXISTING_VERSION],
+      submissions: [{ ...EXISTING_SUBMISSION }],
+      workflowRuns: [EXISTING_WORKFLOW_RUN],
+    });
+
+    const res = await confirmSubmission(app, SUBMISSION_UUID, {
+      confirmedBy: 'internal',
+      edits: [{ fieldKey: 'company_name', value: 'New Name' }],
+    });
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.submission.fields[0].value).toBe('New Name');
+    expect(body.submission.fields[0].status).toBe('user_edited');
+    expect(body.submission.editHistory).toHaveLength(1);
+    expect(body.submission.editHistory[0].fieldKey).toBe('company_name');
+    expect(body.submission.editHistory[0].oldValue).toBe('Acme Corp');
+    expect(body.submission.editHistory[0].newValue).toBe('New Name');
+  });
+
+  it('rejects unknown field key → 400', async () => {
+    const app = createSubmissionsTestApp({
+      schemas: [EXISTING_SCHEMA],
+      versions: [EXISTING_VERSION],
+      submissions: [{ ...EXISTING_SUBMISSION }],
+      workflowRuns: [EXISTING_WORKFLOW_RUN],
+    });
+
+    const res = await confirmSubmission(app, SUBMISSION_UUID, {
+      confirmedBy: 'customer',
+      edits: [{ fieldKey: 'unknown_field', value: 'test' }],
+    });
+
+    expect(res.status).toBe(400);
+  });
+
+  it('returns 404 for nonexistent submission', async () => {
+    const app = createSubmissionsTestApp({
+      schemas: [EXISTING_SCHEMA],
+      versions: [EXISTING_VERSION],
+    });
+
+    const res = await confirmSubmission(app, '00000000-0000-0000-0000-000000000000', {
+      confirmedBy: 'customer',
+    });
+
+    expect(res.status).toBe(404);
+  });
+
+  it('scopes to tenant', async () => {
+    const otherTenantSubmission: StoredSubmission = {
+      ...EXISTING_SUBMISSION,
+      tenantId: 'other-tenant',
+    };
+    const app = createSubmissionsTestApp({
+      schemas: [EXISTING_SCHEMA],
+      versions: [EXISTING_VERSION],
+      submissions: [otherTenantSubmission],
+    });
+
+    const res = await confirmSubmission(app, SUBMISSION_UUID, {
+      confirmedBy: 'customer',
+    });
+
+    expect(res.status).toBe(404);
+  });
+
+  it('queues webhooks on confirm', async () => {
+    const app = createSubmissionsTestApp({
+      schemas: [EXISTING_SCHEMA],
+      versions: [EXISTING_VERSION],
+      submissions: [{ ...EXISTING_SUBMISSION }],
+      workflowRuns: [EXISTING_WORKFLOW_RUN],
+      webhooks: [
+        {
+          id: 'webhook-1',
+          tenantId: 'tenant-1',
+          endpointUrl: 'https://example.com/webhook',
+          secret: 'secret',
+          events: ['submission.confirmed'],
+          isActive: true,
+        },
+      ],
+    });
+
+    const res = await confirmSubmission(app, SUBMISSION_UUID, {
+      confirmedBy: 'customer',
+    });
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.webhooksQueued).toBe(1);
+  });
+});
+
+// =====================
+// GET /api/submissions/:submissionId/artifacts
+// =====================
+
+describe('GET /api/submissions/:submissionId/artifacts', () => {
+  it('returns signed URLs for artifacts', async () => {
+    const app = createSubmissionsTestApp({
+      schemas: [EXISTING_SCHEMA],
+      versions: [EXISTING_VERSION],
+      submissions: [EXISTING_SUBMISSION],
+      workflowRuns: [WORKFLOW_WITH_CRAWL],
+    });
+
+    const res = await getArtifacts(app, SUBMISSION_UUID);
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.artifacts).toHaveLength(2);
+    expect(body.artifacts[0].signedUrl).toContain('stub-storage.local');
+    expect(body.artifacts[0].type).toBe('raw_html');
+  });
+
+  it('returns 400 if workflow not completed', async () => {
+    const pendingRun: StoredWorkflowRun = {
+      ...EXISTING_WORKFLOW_RUN,
+      status: 'running',
+    };
+    const app = createSubmissionsTestApp({
+      schemas: [EXISTING_SCHEMA],
+      versions: [EXISTING_VERSION],
+      submissions: [EXISTING_SUBMISSION],
+      workflowRuns: [pendingRun],
+    });
+
+    const res = await getArtifacts(app, SUBMISSION_UUID);
+
+    expect(res.status).toBe(400);
+  });
+
+  it('returns 404 for missing submission', async () => {
+    const app = createSubmissionsTestApp({
+      schemas: [EXISTING_SCHEMA],
+      versions: [EXISTING_VERSION],
+    });
+
+    const res = await getArtifacts(app, '00000000-0000-0000-0000-000000000000');
+
+    expect(res.status).toBe(404);
+  });
+});
+
+// =====================
+// GET /api/submissions/:submissionId/export/csv
+// =====================
+
+describe('GET /api/submissions/:submissionId/export/csv', () => {
+  it('returns CSV for confirmed submission', async () => {
+    const app = createSubmissionsTestApp({
+      schemas: [EXISTING_SCHEMA],
+      versions: [EXISTING_VERSION],
+      submissions: [CONFIRMED_SUBMISSION],
+      workflowRuns: [EXISTING_WORKFLOW_RUN],
+    });
+
+    const res = await getCsv(app, CONFIRMED_SUBMISSION.id);
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get('Content-Type')).toBe('text/csv');
+    expect(res.headers.get('Content-Disposition')).toContain('attachment');
+
+    const csv = await res.text();
+    expect(csv).toContain('company_name');
+    expect(csv).toContain('Acme Corp');
+  });
+
+  it('returns 400 if not confirmed', async () => {
+    const app = createSubmissionsTestApp({
+      schemas: [EXISTING_SCHEMA],
+      versions: [EXISTING_VERSION],
+      submissions: [EXISTING_SUBMISSION], // draft status
+      workflowRuns: [EXISTING_WORKFLOW_RUN],
+    });
+
+    const res = await getCsv(app, SUBMISSION_UUID);
+
+    expect(res.status).toBe(400);
+  });
+
+  it('returns 404 for missing submission', async () => {
+    const app = createSubmissionsTestApp({
+      schemas: [EXISTING_SCHEMA],
+      versions: [EXISTING_VERSION],
+    });
+
+    const res = await getCsv(app, '00000000-0000-0000-0000-000000000000');
+
+    expect(res.status).toBe(404);
+  });
+});
+
+// =====================
+// GET /api/submissions/:submissionId/context-pack
+// =====================
+
+describe('GET /api/submissions/:submissionId/context-pack', () => {
+  it('returns context pack for confirmed submission', async () => {
+    const confirmedWithCrawl: StoredSubmission = {
+      ...CONFIRMED_SUBMISSION,
+      id: SUBMISSION_UUID,
+    };
+    const app = createSubmissionsTestApp({
+      schemas: [EXISTING_SCHEMA],
+      versions: [EXISTING_VERSION],
+      submissions: [confirmedWithCrawl],
+      workflowRuns: [WORKFLOW_WITH_CRAWL],
+    });
+
+    const res = await getContextPack(app, SUBMISSION_UUID);
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.context.submissionId).toBe(SUBMISSION_UUID);
+    expect(body.context.fields).toHaveProperty('company_name', 'Acme Corp');
+    expect(body.sources).toBeDefined();
+    expect(body.metadata.version).toBe('1.0.0');
+  });
+
+  it('returns 400 if not confirmed', async () => {
+    const app = createSubmissionsTestApp({
+      schemas: [EXISTING_SCHEMA],
+      versions: [EXISTING_VERSION],
+      submissions: [EXISTING_SUBMISSION], // draft status
+      workflowRuns: [WORKFLOW_WITH_CRAWL],
+    });
+
+    const res = await getContextPack(app, SUBMISSION_UUID);
+
+    expect(res.status).toBe(400);
+  });
+
+  it('returns 404 for missing submission', async () => {
+    const app = createSubmissionsTestApp({
+      schemas: [EXISTING_SCHEMA],
+      versions: [EXISTING_VERSION],
+    });
+
+    const res = await getContextPack(app, '00000000-0000-0000-0000-000000000000');
+
     expect(res.status).toBe(404);
   });
 });

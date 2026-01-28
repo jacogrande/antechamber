@@ -132,6 +132,7 @@ function createStubContext(
       get: async () => null,
       delete: async () => {},
       exists: async () => false,
+      getSignedUrl: async (key: string) => `https://stub-storage.local/${key}`,
     },
     llmClient: {
       chat: async () => '',

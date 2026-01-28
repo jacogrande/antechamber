@@ -3,6 +3,7 @@ export interface StorageClient {
   get(key: string): Promise<Buffer | null>;
   delete(key: string): Promise<void>;
   exists(key: string): Promise<boolean>;
+  getSignedUrl(key: string, expiresInSec: number): Promise<string>;
 }
 
 export class StubStorageClient implements StorageClient {
@@ -22,5 +23,10 @@ export class StubStorageClient implements StorageClient {
 
   async exists(key: string): Promise<boolean> {
     return this.store.has(key);
+  }
+
+  async getSignedUrl(key: string, expiresInSec: number): Promise<string> {
+    const expiresAt = new Date(Date.now() + expiresInSec * 1000);
+    return `https://stub-storage.local/${key}?expires=${expiresAt.toISOString()}`;
   }
 }
