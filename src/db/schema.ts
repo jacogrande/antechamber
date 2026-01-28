@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, timestamp, unique, pgEnum, integer, jsonb, boolean } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, text, timestamp, unique, pgEnum, integer, jsonb, boolean, index } from 'drizzle-orm/pg-core';
 
 export const tenantRoleEnum = pgEnum('tenant_role', ['admin', 'editor', 'viewer']);
 
@@ -147,24 +147,28 @@ export const webhooks = pgTable('webhooks', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
-export const webhookDeliveries = pgTable('webhook_deliveries', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  webhookId: uuid('webhook_id')
-    .notNull()
-    .references(() => webhooks.id),
-  submissionId: uuid('submission_id')
-    .notNull()
-    .references(() => submissions.id),
-  event: text('event').notNull(),
-  payload: jsonb('payload').notNull(),
-  status: deliveryStatusEnum('status').notNull().default('pending'),
-  attempts: integer('attempts').notNull().default(0),
-  lastAttemptAt: timestamp('last_attempt_at', { withTimezone: true }),
-  lastError: text('last_error'),
-  nextRetryAt: timestamp('next_retry_at', { withTimezone: true }),
-  completedAt: timestamp('completed_at', { withTimezone: true }),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-});
+export const webhookDeliveries = pgTable(
+  'webhook_deliveries',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    webhookId: uuid('webhook_id')
+      .notNull()
+      .references(() => webhooks.id),
+    submissionId: uuid('submission_id')
+      .notNull()
+      .references(() => submissions.id),
+    event: text('event').notNull(),
+    payload: jsonb('payload').notNull(),
+    status: deliveryStatusEnum('status').notNull().default('pending'),
+    attempts: integer('attempts').notNull().default(0),
+    lastAttemptAt: timestamp('last_attempt_at', { withTimezone: true }),
+    lastError: text('last_error'),
+    nextRetryAt: timestamp('next_retry_at', { withTimezone: true }),
+    completedAt: timestamp('completed_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('webhook_deliveries_pending_retry_idx').on(t.status, t.nextRetryAt)],
+);
 
 export const auditLogs = pgTable('audit_logs', {
   id: uuid('id').primaryKey().defaultRandom(),

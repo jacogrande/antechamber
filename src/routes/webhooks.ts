@@ -7,7 +7,7 @@ import type { Database } from '../db/client';
 import { webhooks } from '../db/schema';
 import { registerWebhookRequestSchema } from '../types/api';
 import { ValidationError, NotFoundError } from '../lib/errors';
-import { generateWebhookSecret } from '../lib/webhooks';
+import { generateWebhookSecret, validateWebhookUrl } from '../lib/webhooks';
 import { AuditService } from '../lib/audit';
 
 export interface WebhooksRouteDeps {
@@ -39,6 +39,9 @@ export function createWebhooksRoute(depsOverride?: WebhooksRouteDeps) {
     const tenantId = c.get('tenantId');
     const userId = c.get('user').id;
     const db = depsOverride?.db ?? getDb();
+
+    // Validate webhook URL (SSRF prevention)
+    await validateWebhookUrl(parsed.data.endpointUrl);
 
     // Generate a secure secret for webhook signing
     const secret = generateWebhookSecret();

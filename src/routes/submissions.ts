@@ -5,14 +5,19 @@ import type { AppEnv } from '../index';
 import { getDb } from '../db/client';
 import { submissions, schemas, schemaVersions, workflowRuns, webhooks } from '../db/schema';
 import { createSubmissionRequestSchema, confirmSubmissionRequestSchema } from '../types/api';
-import type { FieldDefinition } from '../types/api';
 import { ValidationError, NotFoundError } from '../lib/errors';
+import {
+  parseExtractedFields,
+  parseEditHistory,
+  parseFieldDefinitions,
+  parseStepRecords,
+  type ExtractedFieldForExport,
+  type EditHistoryEntry,
+} from '../lib/validation';
 import { WorkflowRunner } from '../lib/workflow/runner';
-import { generateOnboardingDraft } from '../lib/workflow/steps';
+import { generateOnboardingDraft, STEP_NAMES } from '../lib/workflow/steps';
 import type { WorkflowDeps } from '../lib/workflow/types';
-import type { StepRecord } from '../lib/workflow/types';
 import { AuditService } from '../lib/audit';
-import type { EditHistoryEntry } from '../lib/audit';
 import { WebhookDeliveryService } from '../lib/webhooks';
 import type { WebhookPayload } from '../lib/webhooks';
 import { generateCsv } from '../lib/export/csv';
@@ -141,11 +146,23 @@ export function createSubmissionsRoute(depsOverride?: SubmissionsRouteDeps) {
       const runner = new WorkflowRunner(deps);
       runner
         .execute(generateOnboardingDraft, submission.id, workflowRun.id)
-        .catch((err) => {
+        .catch(async (err) => {
           console.error(
             `[workflow] Failed for submission ${submission.id}:`,
             err,
           );
+          // Update submission status to reflect workflow failure
+          try {
+            await db
+              .update(submissions)
+              .set({ status: 'failed', updatedAt: new Date() })
+              .where(eq(submissions.id, submission.id));
+          } catch (updateErr) {
+            console.error(
+              `[workflow] Failed to update submission ${submission.id} status:`,
+              updateErr,
+            );
+          }
         });
     } else {
       // Missing deps — log warning but don't crash
@@ -197,7 +214,7 @@ export function createSubmissionsRoute(depsOverride?: SubmissionsRouteDeps) {
 
     // Strip step outputs from response (internal/idempotency only)
     const sanitizedSteps = latestRun
-      ? ((latestRun.steps as StepRecord[]) ?? []).map((s) => ({
+      ? parseStepRecords(latestRun.steps).map((s) => ({
           name: s.name,
           status: s.status,
           startedAt: s.startedAt,
@@ -271,16 +288,10 @@ export function createSubmissionsRoute(depsOverride?: SubmissionsRouteDeps) {
     }
 
     const audit = getAuditService(db);
-    const fields = (submission.fields as Array<{
-      key: string;
-      value: unknown;
-      confidence?: number;
-      citations?: unknown[];
-      status?: string;
-    }>) ?? [];
+    const fields: ExtractedFieldForExport[] = parseExtractedFields(submission.fields);
 
     // Track edit history
-    const editHistory: EditHistoryEntry[] = (submission.editHistory as EditHistoryEntry[]) ?? [];
+    const editHistory: EditHistoryEntry[] = parseEditHistory(submission.editHistory);
     const now = new Date().toISOString();
 
     // Apply edits if provided
@@ -296,7 +307,7 @@ export function createSubmissionsRoute(depsOverride?: SubmissionsRouteDeps) {
           ),
         );
 
-      const fieldDefs = (version?.fields as FieldDefinition[]) ?? [];
+      const fieldDefs = parseFieldDefinitions(version?.fields);
       const fieldDefMap = new Map(fieldDefs.map((f) => [f.key, f]));
 
       for (const edit of parsed.data.edits) {
@@ -403,8 +414,8 @@ export function createSubmissionsRoute(depsOverride?: SubmissionsRouteDeps) {
       .limit(1);
 
     if (latestRun) {
-      const steps = (latestRun.steps as StepRecord[]) ?? [];
-      const crawlStep = steps.find((s) => s.name === 'crawl');
+      const steps = parseStepRecords(latestRun.steps);
+      const crawlStep = steps.find((s) => s.name === STEP_NAMES.CRAWL);
       if (crawlStep?.output) {
         const output = crawlStep.output as {
           pages?: Array<{ url: string }>;
@@ -478,8 +489,8 @@ export function createSubmissionsRoute(depsOverride?: SubmissionsRouteDeps) {
     }
 
     // Extract artifact keys from crawl step
-    const steps = (latestRun.steps as StepRecord[]) ?? [];
-    const crawlStep = steps.find((s) => s.name === 'crawl');
+    const steps = parseStepRecords(latestRun.steps);
+    const crawlStep = steps.find((s) => s.name === STEP_NAMES.CRAWL);
     const output = crawlStep?.output as {
       pages?: Array<{ url: string }>;
       artifactKeys?: string[];
@@ -547,12 +558,8 @@ export function createSubmissionsRoute(depsOverride?: SubmissionsRouteDeps) {
         ),
       );
 
-    const fieldDefs = (version?.fields as FieldDefinition[]) ?? [];
-    const fields = (submission.fields as Array<{
-      key: string;
-      value: unknown;
-      citations?: Array<{ url?: string; snippet?: string }>;
-    }>) ?? [];
+    const fieldDefs = parseFieldDefinitions(version?.fields);
+    const fields = parseExtractedFields(submission.fields);
 
     const csv = generateCsv(
       {
@@ -606,8 +613,8 @@ export function createSubmissionsRoute(depsOverride?: SubmissionsRouteDeps) {
       .orderBy(desc(workflowRuns.createdAt))
       .limit(1);
 
-    const steps = (latestRun?.steps as StepRecord[]) ?? [];
-    const crawlStep = steps.find((s) => s.name === 'crawl');
+    const steps = parseStepRecords(latestRun?.steps);
+    const crawlStep = steps.find((s) => s.name === STEP_NAMES.CRAWL);
     const output = crawlStep?.output as {
       pages?: Array<{ url: string; title?: string; fetchedAt?: string }>;
     } | undefined;
@@ -618,13 +625,7 @@ export function createSubmissionsRoute(depsOverride?: SubmissionsRouteDeps) {
       retrievedAt: p.fetchedAt ?? new Date().toISOString(),
     }));
 
-    const fields = (submission.fields as Array<{
-      key: string;
-      value: unknown;
-      confidence?: number;
-      citations?: Array<{ url?: string; snippet?: string; title?: string }>;
-      status?: string;
-    }>) ?? [];
+    const fields = parseExtractedFields(submission.fields);
 
     const contextPack = generateContextPack(
       {

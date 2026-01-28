@@ -20,11 +20,3 @@ export interface AuditEntry {
   ipAddress?: string;
   userAgent?: string;
 }
-
-export interface EditHistoryEntry {
-  fieldKey: string;
-  oldValue: unknown;
-  newValue: unknown;
-  editedAt: string;
-  editedBy: string;
-}

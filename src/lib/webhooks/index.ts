@@ -5,6 +5,7 @@ export {
   verifySignature,
   generateWebhookSecret,
 } from './signing';
+export { validateWebhookUrl } from './validation';
 export type {
   WebhookEventType,
   WebhookPayload,

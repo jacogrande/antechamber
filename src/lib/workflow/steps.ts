@@ -4,8 +4,19 @@ import { NotFoundError } from '@/lib/errors';
 import { validateUrl } from '@/lib/crawl/url';
 import { runCrawlPipeline } from '@/lib/crawl/pipeline';
 import { extractAndSynthesize } from '@/lib/extraction/facade';
-import type { FieldDefinition } from '@/types/domain';
+import { parseFieldDefinitions, type FieldDefinition } from '@/lib/validation';
 import type { StepDefinition, WorkflowDefinition } from './types';
+
+// ---------------------------------------------------------------------------
+// Step name constants
+// ---------------------------------------------------------------------------
+
+export const STEP_NAMES = {
+  VALIDATE: 'validate',
+  CRAWL: 'crawl',
+  EXTRACT: 'extract',
+  PERSIST_DRAFT: 'persist_draft',
+} as const;
 
 // ---------------------------------------------------------------------------
 // Step: validate
@@ -20,7 +31,7 @@ interface ValidateOutput {
 }
 
 export const validateStep: StepDefinition<ValidateOutput> = {
-  name: 'validate',
+  name: STEP_NAMES.VALIDATE,
   retryPolicy: { maxAttempts: 1, timeoutMs: 10000 },
   async run(ctx) {
     const { db, submissionId } = ctx;
@@ -71,7 +82,7 @@ export const validateStep: StepDefinition<ValidateOutput> = {
     return {
       schemaId: submission.schemaId,
       schemaVersion: submission.schemaVersion,
-      fields: version.fields as FieldDefinition[],
+      fields: parseFieldDefinitions(version.fields),
       websiteUrl: submission.websiteUrl,
       tenantId: submission.tenantId,
     };
@@ -99,10 +110,10 @@ interface CrawlOutput {
 }
 
 export const crawlStep: StepDefinition<CrawlOutput> = {
-  name: 'crawl',
+  name: STEP_NAMES.CRAWL,
   retryPolicy: { maxAttempts: 3, timeoutMs: 180000 },
   async run(ctx) {
-    const validateOutput = ctx.getStepOutput<ValidateOutput>('validate');
+    const validateOutput = ctx.getStepOutput<ValidateOutput>(STEP_NAMES.VALIDATE);
 
     const result = await runCrawlPipeline(
       validateOutput.websiteUrl,
@@ -144,11 +155,11 @@ interface ExtractOutput {
 }
 
 export const extractStep: StepDefinition<ExtractOutput> = {
-  name: 'extract',
+  name: STEP_NAMES.EXTRACT,
   retryPolicy: { maxAttempts: 2, timeoutMs: 300000 },
   async run(ctx) {
-    const validateOutput = ctx.getStepOutput<ValidateOutput>('validate');
-    const crawlOutput = ctx.getStepOutput<CrawlOutput>('crawl');
+    const validateOutput = ctx.getStepOutput<ValidateOutput>(STEP_NAMES.VALIDATE);
+    const crawlOutput = ctx.getStepOutput<CrawlOutput>(STEP_NAMES.CRAWL);
 
     const result = await extractAndSynthesize(
       {
@@ -176,10 +187,10 @@ interface PersistDraftOutput {
 }
 
 export const persistDraftStep: StepDefinition<PersistDraftOutput> = {
-  name: 'persist_draft',
+  name: STEP_NAMES.PERSIST_DRAFT,
   retryPolicy: { maxAttempts: 3, timeoutMs: 15000 },
   async run(ctx) {
-    const extractOutput = ctx.getStepOutput<ExtractOutput>('extract');
+    const extractOutput = ctx.getStepOutput<ExtractOutput>(STEP_NAMES.EXTRACT);
 
     await ctx.db
       .update(submissions)

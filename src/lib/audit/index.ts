@@ -1,7 +1,2 @@
 export { AuditService } from './service';
-export type {
-  AuditEntry,
-  AuditEventType,
-  AuditResourceType,
-  EditHistoryEntry,
-} from './types';
+export type { AuditEntry, AuditEventType, AuditResourceType } from './types';

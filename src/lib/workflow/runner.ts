@@ -5,11 +5,11 @@ import type {
   WorkflowDeps,
   WorkflowDefinition,
   WorkflowContext,
-  StepRecord,
   StepDefinition,
   RetryPolicy,
 } from './types';
 import { DEFAULT_RETRY_POLICY } from './types';
+import { parseStepRecords, type StepRecord } from '@/lib/validation';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -84,7 +84,7 @@ export class WorkflowRunner {
       .from(workflowRuns)
       .where(eq(workflowRuns.id, runId));
 
-    const stepRecords: StepRecord[] = (run?.steps as StepRecord[]) ?? [];
+    const stepRecords: StepRecord[] = parseStepRecords(run?.steps);
 
     const ctx: WorkflowContext = {
       ...this.deps,

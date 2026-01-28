@@ -28,6 +28,12 @@ auth.post('/api/auth/login', async (c) => {
     throw new UnauthorizedError('Invalid email or password');
   }
 
+  // Email should always exist for password-based auth
+  const userEmail = data.user.email;
+  if (!userEmail) {
+    throw new UnauthorizedError('User account missing email');
+  }
+
   const db = getDb();
   const authId = data.user.id;
 
@@ -42,7 +48,7 @@ auth.post('/api/auth/login', async (c) => {
       .insert(users)
       .values({
         authId,
-        email: data.user.email!,
+        email: userEmail,
         name: data.user.user_metadata?.name ?? null,
       })
       .returning();
@@ -66,7 +72,7 @@ auth.post('/api/auth/login', async (c) => {
     refreshToken: data.session.refresh_token,
     user: {
       id: userId,
-      email: data.user.email!,
+      email: userEmail,
       name: data.user.user_metadata?.name ?? null,
     },
     tenants: memberships.map((m) => ({

@@ -1,20 +1,9 @@
-import type { FieldDefinition } from '@/types/api';
-
-interface ExtractedField {
-  key: string;
-  value: unknown;
-  confidence?: number;
-  citations?: Array<{
-    url?: string;
-    snippet?: string;
-  }>;
-  status?: string;
-}
+import type { FieldDefinition, ExtractedFieldForExport } from '@/lib/validation';
 
 interface ConfirmedSubmission {
   id: string;
   websiteUrl: string;
-  fields: ExtractedField[];
+  fields: ExtractedFieldForExport[];
   confirmedAt: string | Date;
   confirmedBy: string;
 }

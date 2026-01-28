@@ -1,23 +1,12 @@
 import type { ContextPackResponse, ContextPackSource } from '@/types/api';
-
-interface ExtractedField {
-  key: string;
-  value: unknown;
-  confidence?: number;
-  citations?: Array<{
-    url?: string;
-    snippet?: string;
-    title?: string;
-  }>;
-  status?: string;
-}
+import type { ExtractedFieldForExport } from '@/lib/validation';
 
 interface ConfirmedSubmission {
   id: string;
   schemaId: string;
   schemaVersion: number;
   websiteUrl: string;
-  fields: ExtractedField[];
+  fields: ExtractedFieldForExport[];
   confirmedAt: string | Date;
 }
 
@@ -63,7 +52,7 @@ export function generateContextPack(
         const artifact = artifacts.find((a) => a.url === citation.url);
         sourceMap.set(citation.url, {
           url: citation.url,
-          title: citation.title || artifact?.title || '',
+          title: citation.title || citation.pageTitle || artifact?.title || '',
           retrievedAt: artifact?.retrievedAt instanceof Date
             ? artifact.retrievedAt.toISOString()
             : artifact?.retrievedAt || new Date().toISOString(),
