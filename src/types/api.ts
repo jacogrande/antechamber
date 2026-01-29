@@ -245,3 +245,31 @@ export const healthResponseSchema = z.object({
 });
 
 export type HealthResponse = z.infer<typeof healthResponseSchema>;
+
+// --- Tenants ---
+
+export const createTenantRequestSchema = z.object({
+  name: z.string().min(1).max(100),
+  slug: z
+    .string()
+    .min(1)
+    .max(50)
+    .regex(/^[a-z0-9-]+$/, 'Slug must be lowercase letters, numbers, and hyphens only')
+    .optional(),
+});
+
+export type CreateTenantRequest = z.infer<typeof createTenantRequestSchema>;
+
+export const createTenantResponseSchema = z.object({
+  tenant: z.object({
+    id: z.string().uuid(),
+    name: z.string(),
+    slug: z.string(),
+    createdAt: z.string(),
+  }),
+  membership: z.object({
+    role: z.literal('admin'),
+  }),
+});
+
+export type CreateTenantResponse = z.infer<typeof createTenantResponseSchema>;

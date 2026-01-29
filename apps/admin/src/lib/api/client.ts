@@ -38,7 +38,7 @@ export function clearTenantId(): void {
   localStorage.removeItem('tenantId')
 }
 
-async function getAuthHeaders(): Promise<Headers> {
+async function getAuthHeadersOnly(): Promise<Headers> {
   const headers = new Headers({
     'Content-Type': 'application/json',
   })
@@ -47,9 +47,20 @@ async function getAuthHeaders(): Promise<Headers> {
     data: { session },
   } = await supabase.auth.getSession()
 
+  console.log('[API] getSession result - hasSession:', !!session, 'hasToken:', !!session?.access_token)
+
   if (session?.access_token) {
     headers.set('Authorization', `Bearer ${session.access_token}`)
+    console.log('[API] Token (first 50 chars):', session.access_token.substring(0, 50) + '...')
+  } else {
+    console.warn('[API] No session/token available!')
   }
+
+  return headers
+}
+
+async function getAuthHeaders(): Promise<Headers> {
+  const headers = await getAuthHeadersOnly()
 
   try {
     const tenantId = getTenantId()
@@ -105,6 +116,20 @@ export async function apiDelete<T>(path: string): Promise<T> {
   const response = await fetch(`${API_BASE}${path}`, {
     method: 'DELETE',
     headers,
+  })
+  return handleResponse<T>(response)
+}
+
+/**
+ * POST request with auth but without tenant header.
+ * Used for endpoints that don't require tenant context (e.g., creating a tenant).
+ */
+export async function apiPostNoTenant<T>(path: string, body?: unknown): Promise<T> {
+  const headers = await getAuthHeadersOnly()
+  const response = await fetch(`${API_BASE}${path}`, {
+    method: 'POST',
+    headers,
+    body: body ? JSON.stringify(body) : undefined,
   })
   return handleResponse<T>(response)
 }

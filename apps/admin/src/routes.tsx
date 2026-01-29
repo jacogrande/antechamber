@@ -1,5 +1,6 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom'
 import { AuthGuard } from '@/components/auth/AuthGuard'
+import { TenantGuard } from '@/components/auth/TenantGuard'
 import { AppShell } from '@/components/layout/AppShell'
 import { Login } from '@/pages/Login'
 import { Signup } from '@/pages/Signup'
@@ -13,6 +14,7 @@ import {
 import { SubmissionDetail } from '@/pages/submissions'
 import { Webhooks } from '@/pages/webhooks'
 import { Settings } from '@/pages/Settings'
+import { OrganizationSetup } from '@/pages/setup'
 
 export const router = createBrowserRouter([
   // Public routes
@@ -25,11 +27,23 @@ export const router = createBrowserRouter([
     element: <Signup />,
   },
 
-  // Protected routes
+  // Organization setup (auth required, but NOT tenant)
+  {
+    path: '/setup/org',
+    element: (
+      <AuthGuard>
+        <OrganizationSetup />
+      </AuthGuard>
+    ),
+  },
+
+  // Protected routes (require both auth AND tenant)
   {
     element: (
       <AuthGuard>
-        <AppShell />
+        <TenantGuard>
+          <AppShell />
+        </TenantGuard>
       </AuthGuard>
     ),
     children: [

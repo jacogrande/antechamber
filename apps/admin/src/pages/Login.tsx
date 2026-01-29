@@ -71,7 +71,8 @@ export function Login() {
       setSelectedTenantId(result.tenants[0].id)
       onOpen()
     } else if (result.tenants && result.tenants.length === 0) {
-      setError('No organization access. Please contact your administrator.')
+      // No tenants - redirect to organization setup
+      navigate('/setup/org', { replace: true })
     } else {
       // Single tenant - already selected by useAuth
       toast({

@@ -5,11 +5,16 @@ import { tenantMiddleware } from './middleware/tenant';
 import { requireRole } from './middleware/rbac';
 import health from './routes/health';
 import auth from './routes/auth';
+import tenantsRoute from './routes/tenants';
 import schemas from './routes/schemas';
 import submissions from './routes/submissions';
 import webhooksRoute from './routes/webhooks';
 import cronRoute from './routes/cron';
 import statsRoute from './routes/stats';
+import { checkDbConnection } from './db/client';
+
+// Check database connection on startup
+void checkDbConnection();
 
 export type AppEnv = {
   Variables: {
@@ -21,6 +26,12 @@ export type AppEnv = {
 };
 
 const app = new Hono<AppEnv>();
+
+// Debug: log every request
+app.use('*', async (c, next) => {
+  console.log(`[REQUEST] ${c.req.method} ${c.req.path}`);
+  await next();
+});
 
 // Global error handler
 app.onError(errorHandler);
@@ -63,6 +74,7 @@ app.delete('/api/webhooks/:id', requireRole('admin'));
 
 // API routes (auth routes include both login and logout)
 app.route('/', auth);
+app.route('/', tenantsRoute); // Requires auth but NOT tenant middleware
 app.route('/', schemas);
 app.route('/', submissions);
 app.route('/', webhooksRoute);

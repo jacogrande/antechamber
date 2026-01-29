@@ -13,7 +13,7 @@ export function createCronRoute(depsOverride?: { db?: ReturnType<typeof getDb> }
 
   // Verify cron secret middleware
   // Note: Read CRON_SECRET at request time to support testing
-  route.use('*', async (c, next) => {
+  route.use('/api/cron/*', async (c, next) => {
     const cronSecret = process.env.CRON_SECRET;
     const authHeader = c.req.header('Authorization');
 
