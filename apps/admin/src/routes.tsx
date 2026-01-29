@@ -10,6 +10,7 @@ import {
   SchemaDetail,
   SchemaVersionCreate,
 } from '@/pages/schemas'
+import { Webhooks } from '@/pages/webhooks'
 
 // Placeholder pages for routes that will be implemented in later phases
 function Placeholder({ title }: { title: string }) {
@@ -62,11 +63,7 @@ export const router = createBrowserRouter([
       },
       {
         path: '/webhooks',
-        element: <Placeholder title="Webhooks" />,
-      },
-      {
-        path: '/webhooks/new',
-        element: <Placeholder title="New Webhook" />,
+        element: <Webhooks />,
       },
       {
         path: '/settings',

@@ -1,10 +1,10 @@
 import { Hono } from 'hono';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, desc } from 'drizzle-orm';
 import { z } from 'zod';
 import type { AppEnv } from '../index';
 import { getDb } from '../db/client';
 import type { Database } from '../db/client';
-import { webhooks } from '../db/schema';
+import { webhooks, webhookDeliveries } from '../db/schema';
 import { registerWebhookRequestSchema } from '../types/api';
 import { ValidationError, NotFoundError } from '../lib/errors';
 import { generateWebhookSecret, validateWebhookUrl } from '../lib/webhooks';
@@ -137,6 +137,63 @@ export function createWebhooksRoute(depsOverride?: WebhooksRouteDeps) {
       .where(eq(webhooks.id, webhookId));
 
     return c.body(null, 204);
+  });
+
+  // GET /api/webhooks/:webhookId/deliveries - List delivery history
+  route.get('/api/webhooks/:webhookId/deliveries', async (c) => {
+    const webhookId = c.req.param('webhookId');
+
+    // Validate UUID format
+    const uuidResult = z.string().uuid().safeParse(webhookId);
+    if (!uuidResult.success) {
+      throw new ValidationError('Invalid webhook ID format');
+    }
+
+    const tenantId = c.get('tenantId');
+    const db = depsOverride?.db ?? getDb();
+
+    // Verify webhook exists and belongs to tenant
+    const [webhook] = await db
+      .select()
+      .from(webhooks)
+      .where(and(eq(webhooks.id, webhookId), eq(webhooks.tenantId, tenantId)));
+
+    if (!webhook) {
+      throw new NotFoundError('Webhook not found');
+    }
+
+    const deliveries = await db
+      .select({
+        id: webhookDeliveries.id,
+        webhookId: webhookDeliveries.webhookId,
+        submissionId: webhookDeliveries.submissionId,
+        event: webhookDeliveries.event,
+        status: webhookDeliveries.status,
+        attempts: webhookDeliveries.attempts,
+        lastAttemptAt: webhookDeliveries.lastAttemptAt,
+        lastError: webhookDeliveries.lastError,
+        completedAt: webhookDeliveries.completedAt,
+        createdAt: webhookDeliveries.createdAt,
+      })
+      .from(webhookDeliveries)
+      .where(eq(webhookDeliveries.webhookId, webhookId))
+      .orderBy(desc(webhookDeliveries.createdAt))
+      .limit(50);
+
+    return c.json({
+      deliveries: deliveries.map((d) => ({
+        id: d.id,
+        webhookId: d.webhookId,
+        submissionId: d.submissionId,
+        event: d.event,
+        status: d.status,
+        attempts: d.attempts,
+        lastAttemptAt: d.lastAttemptAt?.toISOString() ?? null,
+        lastError: d.lastError,
+        completedAt: d.completedAt?.toISOString() ?? null,
+        createdAt: d.createdAt?.toISOString(),
+      })),
+    });
   });
 
   return route;

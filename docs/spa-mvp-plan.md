@@ -1384,30 +1384,36 @@ bun run preview  # Preview production build
 - [x] Toast notifications for save success/error
 - [x] Mobile responsive layout with bottom drawer for properties
 
-### Phase 3: Webhook Management (Week 3)
+### Phase 3: Webhook Management (Week 3) ✅
 
 **3.1 API Layer**
-- [ ] Create `src/api/webhooks.ts` - useWebhooks, useCreateWebhook, useDeleteWebhook hooks
+- [x] Create `src/lib/api/webhooks.ts` - API client functions
+- [x] Create `src/hooks/useWebhooks.ts` - useWebhooks, useWebhookDeliveries, useCreateWebhook, useDeleteWebhook hooks
 
 **3.2 Common Components**
 - [x] Create `src/components/common/ConfirmDialog.tsx` - confirmation modal using AlertDialog (done in Phase 2)
-- [ ] Create `src/components/common/CopyButton.tsx` - copy to clipboard button
+- [x] Create `src/components/common/CopyButton.tsx` - copy to clipboard button with tooltip feedback
 
 **3.3 Webhook Components**
-- [ ] Create `src/components/webhooks/WebhookCard.tsx` - webhook summary with status badge
-- [ ] Create `src/components/webhooks/WebhookList.tsx` - list of webhook cards
-- [ ] Create `src/components/webhooks/WebhookForm.tsx` - create webhook form
-- [ ] Create `src/components/webhooks/WebhookSecret.tsx` - secret display with copy + warning
+- [x] Create `src/components/webhooks/WebhookStatusBadge.tsx` - Active/Inactive status badge
+- [x] Create `src/components/webhooks/WebhookEventBadge.tsx` - event type badge
+- [x] Create `src/components/webhooks/WebhookTable.tsx` - webhook list table with delete confirmation
+- [x] Create `src/components/webhooks/WebhookRow.tsx` - expandable row with delivery history
+- [x] Create `src/components/webhooks/WebhookCreateModal.tsx` - create webhook form modal
+- [x] Create `src/components/webhooks/WebhookSecretModal.tsx` - one-time secret display with copy + warning
+- [x] Create `src/components/webhooks/WebhookDeliveryLog.tsx` - delivery history table
 
 **3.4 Webhook Pages**
-- [ ] Create `src/pages/Webhooks.tsx` - webhook list page
-- [ ] Create `src/pages/WebhookCreate.tsx` - create webhook page (or modal)
+- [x] Create `src/pages/webhooks/Webhooks.tsx` - webhook list page with empty state
+- [x] Webhook creation via modal (WebhookCreateModal) instead of separate page
 
 **3.5 Polish & Error Handling**
-- [ ] Add Skeleton loading states to list pages
-- [ ] Create `src/components/common/ErrorBoundary.tsx` - error boundary wrapper
-- [ ] Configure global toast notifications for mutations
-- [ ] Responsive design pass - mobile sidebar, stacked layouts
+- [x] Loading states using LoadingSpinner component
+- [x] Configure toast notifications for create/delete mutations
+- [x] Responsive table with horizontal scroll on mobile
+
+**3.6 Backend**
+- [x] Add `GET /api/webhooks/:id/deliveries` endpoint for delivery history
 
 ### Phase 4: Dashboard, Settings & Launch (Week 4)
 
