@@ -1,5 +1,10 @@
-import { useQuery } from '@tanstack/react-query'
-import { listSubmissions, type ListSubmissionsParams } from '@/lib/api/submissions'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import {
+  listSubmissions,
+  createSubmission,
+  type ListSubmissionsParams,
+  type CreateSubmissionParams,
+} from '@/lib/api/submissions'
 import { getStats } from '@/lib/api/stats'
 
 export const submissionKeys = {
@@ -17,6 +22,20 @@ export function useSubmissions(params: ListSubmissionsParams = {}) {
   return useQuery({
     queryKey: submissionKeys.list(params),
     queryFn: () => listSubmissions(params),
+  })
+}
+
+export function useCreateSubmission() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (params: CreateSubmissionParams) => createSubmission(params),
+    onSuccess: () => {
+      // Invalidate submissions list to refetch
+      void queryClient.invalidateQueries({ queryKey: submissionKeys.all })
+      // Also invalidate stats since submission count changed
+      void queryClient.invalidateQueries({ queryKey: statsKeys.all })
+    },
   })
 }
 

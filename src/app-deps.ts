@@ -1,0 +1,39 @@
+import { getDb } from './db/client';
+import { getEnv } from './env';
+import { StubStorageClient, VercelBlobStorageClient } from './lib/storage';
+import { createAnthropicClient } from './lib/extraction';
+import type { WorkflowDeps } from './lib/workflow/types';
+
+/**
+ * Get workflow dependencies from environment configuration.
+ * Returns null if required dependencies (ANTHROPIC_API_KEY) are not configured.
+ * Uses StubStorageClient if BLOB_READ_WRITE_TOKEN is not set.
+ */
+export function getWorkflowDeps(): WorkflowDeps | null {
+  const env = getEnv();
+
+  if (!env.ANTHROPIC_API_KEY) {
+    console.warn(
+      '[app-deps] ANTHROPIC_API_KEY not configured — workflow execution disabled',
+    );
+    return null;
+  }
+
+  const llmClient = createAnthropicClient(env.ANTHROPIC_API_KEY);
+
+  const storage = env.BLOB_READ_WRITE_TOKEN
+    ? new VercelBlobStorageClient(env.BLOB_READ_WRITE_TOKEN)
+    : new StubStorageClient();
+
+  if (!env.BLOB_READ_WRITE_TOKEN) {
+    console.warn(
+      '[app-deps] BLOB_READ_WRITE_TOKEN not configured — using in-memory stub storage',
+    );
+  }
+
+  return {
+    db: getDb(),
+    storage,
+    llmClient,
+  };
+}

@@ -6,6 +6,8 @@ export interface StorageClient {
   getSignedUrl(key: string, expiresInSec: number): Promise<string>;
 }
 
+export { VercelBlobStorageClient } from './storage/vercel-blob';
+
 export class StubStorageClient implements StorageClient {
   private store = new Map<string, Buffer>();
 

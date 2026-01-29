@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { RouterProvider } from 'react-router-dom'
 import { theme } from '@/theme'
 import { router } from '@/routes'
+import { ErrorBoundary } from '@/components/common'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -15,10 +16,12 @@ const queryClient = new QueryClient({
 
 export function App() {
   return (
-    <ChakraProvider theme={theme}>
-      <QueryClientProvider client={queryClient}>
-        <RouterProvider router={router} />
-      </QueryClientProvider>
-    </ChakraProvider>
+    <ErrorBoundary>
+      <ChakraProvider theme={theme}>
+        <QueryClientProvider client={queryClient}>
+          <RouterProvider router={router} />
+        </QueryClientProvider>
+      </ChakraProvider>
+    </ErrorBoundary>
   )
 }

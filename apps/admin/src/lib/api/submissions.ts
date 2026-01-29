@@ -1,4 +1,4 @@
-import { apiGet } from './client'
+import { apiGet, apiPost } from './client'
 import type {
   SubmissionsListResponse,
   SubmissionStatus,
@@ -21,4 +21,22 @@ export async function listSubmissions(
   const query = searchParams.toString()
   const path = query ? `/submissions?${query}` : '/submissions'
   return apiGet<SubmissionsListResponse>(path)
+}
+
+export interface CreateSubmissionParams {
+  schemaId: string
+  websiteUrl: string
+  schemaVersion?: number
+  customerMeta?: Record<string, unknown>
+}
+
+export interface CreateSubmissionResponse {
+  submissionId: string
+  workflowRunId: string
+}
+
+export async function createSubmission(
+  params: CreateSubmissionParams
+): Promise<CreateSubmissionResponse> {
+  return apiPost<CreateSubmissionResponse>('/submissions', params)
 }

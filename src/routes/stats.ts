@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { eq, count, and } from 'drizzle-orm';
 import type { AppEnv } from '../index';
 import { getDb } from '../db/client';
-import { schemas, submissions, webhooks, tenants, tenantMemberships } from '../db/schema';
+import { schemas, submissions, webhooks, tenants } from '../db/schema';
 
 const statsRoute = new Hono<AppEnv>();
 

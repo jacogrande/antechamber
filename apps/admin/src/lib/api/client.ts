@@ -100,16 +100,6 @@ export async function apiPost<T>(path: string, body?: unknown): Promise<T> {
   return handleResponse<T>(response)
 }
 
-export async function apiPut<T>(path: string, body?: unknown): Promise<T> {
-  const headers = await getAuthHeaders()
-  const response = await fetch(`${API_BASE}${path}`, {
-    method: 'PUT',
-    headers,
-    body: body ? JSON.stringify(body) : undefined,
-  })
-  return handleResponse<T>(response)
-}
-
 export async function apiDelete<T>(path: string): Promise<T> {
   const headers = await getAuthHeaders()
   const response = await fetch(`${API_BASE}${path}`, {

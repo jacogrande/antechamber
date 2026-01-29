@@ -6,21 +6,27 @@ import {
   Card,
   CardBody,
   Icon,
+  Button,
+  HStack,
+  useDisclosure,
 } from '@chakra-ui/react'
 import {
   HiOutlineDocumentText,
   HiOutlineInbox,
   HiOutlineGlobeAlt,
   HiOutlineCheckCircle,
+  HiOutlinePlus,
 } from 'react-icons/hi'
 import { useAuth } from '@/hooks/useAuth'
 import { useStats, useSubmissions } from '@/hooks/useSubmissions'
 import { StatCard, RecentSubmissions } from '@/components/dashboard'
+import { CreateSubmissionModal } from '@/components/submissions'
 
 export function Dashboard() {
   const { user } = useAuth()
   const { data: stats, isLoading: statsLoading } = useStats()
   const { data: submissionsData, isLoading: submissionsLoading } = useSubmissions({ limit: 5 })
+  const { isOpen, onOpen, onClose } = useDisclosure()
 
   const hasData = stats && (
     stats.schemas.total > 0 ||
@@ -34,14 +40,23 @@ export function Dashboard() {
 
   return (
     <Box>
-      <Box mb={8}>
-        <Heading size="lg" mb={2}>
-          Welcome back
-        </Heading>
-        <Text color="text.muted">
-          {user?.email}
-        </Text>
-      </Box>
+      <HStack mb={8} justify="space-between" align="flex-start">
+        <Box>
+          <Heading size="lg" mb={2}>
+            Welcome back
+          </Heading>
+          <Text color="text.muted">
+            {user?.email}
+          </Text>
+        </Box>
+        <Button
+          leftIcon={<Icon as={HiOutlinePlus} />}
+          variant="primary"
+          onClick={onOpen}
+        >
+          New Submission
+        </Button>
+      </HStack>
 
       <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} gap={6} mb={8}>
         <StatCard
@@ -111,6 +126,8 @@ export function Dashboard() {
           </CardBody>
         </Card>
       )}
+
+      <CreateSubmissionModal isOpen={isOpen} onClose={onClose} />
     </Box>
   )
 }

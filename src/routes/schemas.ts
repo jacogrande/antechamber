@@ -2,194 +2,226 @@ import { Hono } from 'hono';
 import { eq, and, max, desc } from 'drizzle-orm';
 import type { AppEnv } from '../index';
 import { getDb } from '../db/client';
+import type { Database } from '../db/client';
 import { schemas, schemaVersions } from '../db/schema';
 import { createSchemaRequestSchema, createSchemaVersionRequestSchema } from '../types/api';
 import { ValidationError, NotFoundError, ConflictError } from '../lib/errors';
+import { AuditService } from '../lib/audit';
 
 /** Check if an error is a Postgres unique constraint violation (code 23505) */
 function isUniqueViolation(err: unknown): boolean {
   return typeof err === 'object' && err !== null && 'code' in err && (err as { code: string }).code === '23505';
 }
 
-const schemasRoute = new Hono<AppEnv>();
+export interface SchemasRouteDeps {
+  db?: Database;
+  auditService?: AuditService;
+}
 
-// List all schemas for tenant
-schemasRoute.get('/api/schemas', async (c) => {
-  const tenantId = c.get('tenantId');
-  const db = getDb();
+export function createSchemasRoute(depsOverride?: SchemasRouteDeps) {
+  const route = new Hono<AppEnv>();
 
-  const results = await db
-    .select()
-    .from(schemas)
-    .where(eq(schemas.tenantId, tenantId))
-    .orderBy(desc(schemas.updatedAt));
+  // Create audit service once per route instance
+  let _auditService: AuditService | undefined;
 
-  return c.json({ schemas: results });
-});
+  const getAuditService = (db: Database): AuditService => {
+    if (depsOverride?.auditService) return depsOverride.auditService;
+    if (!_auditService) _auditService = new AuditService(db);
+    return _auditService;
+  };
 
-// Get a single schema with its latest version
-schemasRoute.get('/api/schemas/:schemaId', async (c) => {
-  const tenantId = c.get('tenantId');
-  const schemaId = c.req.param('schemaId');
-  const db = getDb();
+  // List all schemas for tenant
+  route.get('/api/schemas', async (c) => {
+    const tenantId = c.get('tenantId');
+    const db = depsOverride?.db ?? getDb();
 
-  const [schema] = await db
-    .select()
-    .from(schemas)
-    .where(and(eq(schemas.id, schemaId), eq(schemas.tenantId, tenantId)))
-    .limit(1);
+    const results = await db
+      .select()
+      .from(schemas)
+      .where(eq(schemas.tenantId, tenantId))
+      .orderBy(desc(schemas.updatedAt));
 
-  if (!schema) {
-    throw new NotFoundError('Schema not found');
-  }
-
-  // Get all versions for this schema
-  const versions = await db
-    .select()
-    .from(schemaVersions)
-    .where(eq(schemaVersions.schemaId, schemaId))
-    .orderBy(desc(schemaVersions.version));
-
-  const latestVersion = versions[0] ?? null;
-
-  return c.json({ schema, latestVersion, versions });
-});
-
-schemasRoute.post('/api/schemas', async (c) => {
-  const body = await c.req.json();
-  const parsed = createSchemaRequestSchema.safeParse(body);
-
-  if (!parsed.success) {
-    throw new ValidationError('Invalid request body', parsed.error.flatten());
-  }
-
-  const tenantId = c.get('tenantId');
-  const userId = c.get('user').id;
-  const db = getDb();
-
-  const result = await db.transaction(async (tx) => {
-    const [schema] = await tx
-      .insert(schemas)
-      .values({
-        tenantId,
-        name: parsed.data.name,
-      })
-      .returning();
-
-    const [version] = await tx
-      .insert(schemaVersions)
-      .values({
-        schemaId: schema.id,
-        version: 1,
-        fields: parsed.data.fields,
-        createdBy: userId,
-      })
-      .returning();
-
-    return { schema, version };
+    return c.json({ schemas: results });
   });
 
-  return c.json(
-    {
-      schema: result.schema,
-      version: result.version,
-    },
-    201,
-  );
-});
+  // Get a single schema with its latest version
+  route.get('/api/schemas/:schemaId', async (c) => {
+    const tenantId = c.get('tenantId');
+    const schemaId = c.req.param('schemaId');
+    const db = depsOverride?.db ?? getDb();
 
-schemasRoute.post('/api/schemas/:schemaId/versions', async (c) => {
-  const body = await c.req.json();
-  const parsed = createSchemaVersionRequestSchema.safeParse(body);
+    const [schema] = await db
+      .select()
+      .from(schemas)
+      .where(and(eq(schemas.id, schemaId), eq(schemas.tenantId, tenantId)))
+      .limit(1);
 
-  if (!parsed.success) {
-    throw new ValidationError('Invalid request body', parsed.error.flatten());
-  }
+    if (!schema) {
+      throw new NotFoundError('Schema not found');
+    }
 
-  const tenantId = c.get('tenantId');
-  const userId = c.get('user').id;
-  const schemaId = c.req.param('schemaId');
-  const db = getDb();
+    // Get all versions for this schema
+    const versions = await db
+      .select()
+      .from(schemaVersions)
+      .where(eq(schemaVersions.schemaId, schemaId))
+      .orderBy(desc(schemaVersions.version));
 
-  try {
-    const version = await db.transaction(async (tx) => {
-      // Lock the schema row to serialize concurrent version creation
+    const latestVersion = versions[0] ?? null;
+
+    return c.json({ schema, latestVersion, versions });
+  });
+
+  route.post('/api/schemas', async (c) => {
+    const body = await c.req.json();
+    const parsed = createSchemaRequestSchema.safeParse(body);
+
+    if (!parsed.success) {
+      throw new ValidationError('Invalid request body', parsed.error.flatten());
+    }
+
+    const tenantId = c.get('tenantId');
+    const userId = c.get('user').id;
+    const db = depsOverride?.db ?? getDb();
+
+    const result = await db.transaction(async (tx) => {
       const [schema] = await tx
-        .select()
-        .from(schemas)
-        .where(and(eq(schemas.id, schemaId), eq(schemas.tenantId, tenantId)))
-        .for('update');
+        .insert(schemas)
+        .values({
+          tenantId,
+          name: parsed.data.name,
+        })
+        .returning();
 
-      if (!schema) {
-        throw new NotFoundError('Schema not found');
-      }
-
-      const [{ maxVersion }] = await tx
-        .select({ maxVersion: max(schemaVersions.version) })
-        .from(schemaVersions)
-        .where(eq(schemaVersions.schemaId, schemaId));
-
-      const nextVersion = (maxVersion ?? 0) + 1;
-
-      const [newVersion] = await tx
+      const [version] = await tx
         .insert(schemaVersions)
         .values({
-          schemaId,
-          version: nextVersion,
+          schemaId: schema.id,
+          version: 1,
           fields: parsed.data.fields,
           createdBy: userId,
         })
         .returning();
 
-      return newVersion;
+      return { schema, version };
     });
 
-    return c.json({ version }, 201);
-  } catch (err) {
-    if (err instanceof NotFoundError) throw err;
-    if (isUniqueViolation(err)) {
-      throw new ConflictError('Version conflict — please retry');
+    // Audit log schema creation
+    const audit = getAuditService(db);
+    await audit.logSchemaCreated(tenantId, result.schema.id, userId, {
+      name: parsed.data.name,
+      fieldCount: parsed.data.fields.length,
+    });
+
+    return c.json(
+      {
+        schema: result.schema,
+        version: result.version,
+      },
+      201,
+    );
+  });
+
+  route.post('/api/schemas/:schemaId/versions', async (c) => {
+    const body = await c.req.json();
+    const parsed = createSchemaVersionRequestSchema.safeParse(body);
+
+    if (!parsed.success) {
+      throw new ValidationError('Invalid request body', parsed.error.flatten());
     }
-    throw err;
-  }
-});
 
-schemasRoute.get('/api/schemas/:schemaId/versions/:version', async (c) => {
-  const versionParam = c.req.param('version');
-  const versionNum = Number(versionParam);
+    const tenantId = c.get('tenantId');
+    const userId = c.get('user').id;
+    const schemaId = c.req.param('schemaId');
+    const db = depsOverride?.db ?? getDb();
 
-  if (!Number.isInteger(versionNum) || versionNum < 1) {
-    throw new ValidationError('Version must be a positive integer');
-  }
+    try {
+      const version = await db.transaction(async (tx) => {
+        // Lock the schema row to serialize concurrent version creation
+        const [schema] = await tx
+          .select()
+          .from(schemas)
+          .where(and(eq(schemas.id, schemaId), eq(schemas.tenantId, tenantId)))
+          .for('update');
 
-  const tenantId = c.get('tenantId');
-  const schemaId = c.req.param('schemaId');
-  const db = getDb();
+        if (!schema) {
+          throw new NotFoundError('Schema not found');
+        }
 
-  // Verify schema exists and belongs to tenant
-  const [schema] = await db
-    .select()
-    .from(schemas)
-    .where(and(eq(schemas.id, schemaId), eq(schemas.tenantId, tenantId)))
-    .limit(1);
+        const [{ maxVersion }] = await tx
+          .select({ maxVersion: max(schemaVersions.version) })
+          .from(schemaVersions)
+          .where(eq(schemaVersions.schemaId, schemaId));
 
-  if (!schema) {
-    throw new NotFoundError('Schema not found');
-  }
+        const nextVersion = (maxVersion ?? 0) + 1;
 
-  const [version] = await db
-    .select()
-    .from(schemaVersions)
-    .where(
-      and(eq(schemaVersions.schemaId, schemaId), eq(schemaVersions.version, versionNum)),
-    )
-    .limit(1);
+        const [newVersion] = await tx
+          .insert(schemaVersions)
+          .values({
+            schemaId,
+            version: nextVersion,
+            fields: parsed.data.fields,
+            createdBy: userId,
+          })
+          .returning();
 
-  if (!version) {
-    throw new NotFoundError('Schema version not found');
-  }
+        return newVersion;
+      });
 
-  return c.json({ version });
-});
+      // Audit log version creation
+      const audit = getAuditService(db);
+      await audit.logSchemaVersionCreated(tenantId, schemaId, userId, version.version);
 
+      return c.json({ version }, 201);
+    } catch (err) {
+      if (err instanceof NotFoundError) throw err;
+      if (isUniqueViolation(err)) {
+        throw new ConflictError('Version conflict — please retry');
+      }
+      throw err;
+    }
+  });
+
+  route.get('/api/schemas/:schemaId/versions/:version', async (c) => {
+    const versionParam = c.req.param('version');
+    const versionNum = Number(versionParam);
+
+    if (!Number.isInteger(versionNum) || versionNum < 1) {
+      throw new ValidationError('Version must be a positive integer');
+    }
+
+    const tenantId = c.get('tenantId');
+    const schemaId = c.req.param('schemaId');
+    const db = depsOverride?.db ?? getDb();
+
+    // Verify schema exists and belongs to tenant
+    const [schema] = await db
+      .select()
+      .from(schemas)
+      .where(and(eq(schemas.id, schemaId), eq(schemas.tenantId, tenantId)))
+      .limit(1);
+
+    if (!schema) {
+      throw new NotFoundError('Schema not found');
+    }
+
+    const [version] = await db
+      .select()
+      .from(schemaVersions)
+      .where(
+        and(eq(schemaVersions.schemaId, schemaId), eq(schemaVersions.version, versionNum)),
+      )
+      .limit(1);
+
+    if (!version) {
+      throw new NotFoundError('Schema version not found');
+    }
+
+    return c.json({ version });
+  });
+
+  return route;
+}
+
+const schemasRoute = createSchemasRoute();
 export default schemasRoute;

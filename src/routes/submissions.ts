@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { eq, and, max, desc, count, sql } from 'drizzle-orm';
+import { eq, and, max, desc, count } from 'drizzle-orm';
 import { z } from 'zod';
 import type { AppEnv } from '../index';
 import { getDb } from '../db/client';
@@ -22,6 +22,7 @@ import { WebhookDeliveryService } from '../lib/webhooks';
 import type { WebhookPayload } from '../lib/webhooks';
 import { generateCsv } from '../lib/export/csv';
 import { generateContextPack } from '../lib/export/context-pack';
+import { getWorkflowDeps } from '../app-deps';
 
 // ---------------------------------------------------------------------------
 // Route dependencies - extends workflow deps with route-specific services
@@ -128,6 +129,15 @@ export function createSubmissionsRoute(depsOverride?: SubmissionsRouteDeps) {
         .returning();
 
       return { submission: sub, workflowRun: run };
+    });
+
+    // Audit log submission creation
+    const userId = c.get('user')?.id;
+    const audit = getAuditService(db);
+    await audit.logSubmissionCreated(tenantId, submission.id, userId, {
+      schemaId: parsed.data.schemaId,
+      schemaVersion: resolvedVersion,
+      websiteUrl: parsed.data.websiteUrl,
     });
 
     // Build workflow deps from overrides or defaults
@@ -695,5 +705,5 @@ export function createSubmissionsRoute(depsOverride?: SubmissionsRouteDeps) {
   return route;
 }
 
-const submissionsRoute = createSubmissionsRoute();
+const submissionsRoute = createSubmissionsRoute(getWorkflowDeps() ?? undefined);
 export default submissionsRoute;

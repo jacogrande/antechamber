@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { errorHandler } from './middleware/error-handler';
 import { authMiddleware } from './middleware/auth';
 import { tenantMiddleware } from './middleware/tenant';
+import { requireRole } from './middleware/rbac';
 import health from './routes/health';
 import auth from './routes/auth';
 import schemas from './routes/schemas';
@@ -50,6 +51,15 @@ app.use('/api/submissions', tenantMiddleware);
 app.use('/api/webhooks/*', tenantMiddleware);
 app.use('/api/stats', tenantMiddleware);
 app.use('/api/tenant', tenantMiddleware);
+
+// RBAC middleware for write operations
+// Schemas: editor+ can create/modify schemas
+app.post('/api/schemas', requireRole('editor'));
+app.post('/api/schemas/:id/versions', requireRole('editor'));
+
+// Webhooks: admin only for registration/deletion
+app.post('/api/webhooks', requireRole('admin'));
+app.delete('/api/webhooks/:id', requireRole('admin'));
 
 // API routes (auth routes include both login and logout)
 app.route('/', auth);
