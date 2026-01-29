@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { eq, and, max, desc } from 'drizzle-orm';
+import { eq, and, max, desc, count, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import type { AppEnv } from '../index';
 import { getDb } from '../db/client';
@@ -181,6 +181,56 @@ export function createSubmissionsRoute(depsOverride?: SubmissionsRouteDeps) {
       },
       202,
     );
+  });
+
+  // GET /api/submissions - List submissions for tenant
+  route.get('/api/submissions', async (c) => {
+    const tenantId = c.get('tenantId');
+    const db = depsOverride?.db ?? getDb();
+
+    // Optional query params for filtering
+    const statusFilter = c.req.query('status');
+    const limit = Math.min(Number(c.req.query('limit')) || 20, 100);
+    const offset = Number(c.req.query('offset')) || 0;
+
+    // Build query conditions
+    const conditions = [eq(submissions.tenantId, tenantId)];
+    if (statusFilter && ['pending', 'draft', 'confirmed', 'failed'].includes(statusFilter)) {
+      conditions.push(eq(submissions.status, statusFilter as 'pending' | 'draft' | 'confirmed' | 'failed'));
+    }
+
+    // Get submissions with schema name joined
+    const results = await db
+      .select({
+        id: submissions.id,
+        schemaId: submissions.schemaId,
+        schemaName: schemas.name,
+        websiteUrl: submissions.websiteUrl,
+        status: submissions.status,
+        createdAt: submissions.createdAt,
+        updatedAt: submissions.updatedAt,
+      })
+      .from(submissions)
+      .leftJoin(schemas, eq(submissions.schemaId, schemas.id))
+      .where(and(...conditions))
+      .orderBy(desc(submissions.createdAt))
+      .limit(limit + 1) // Fetch one extra to determine hasMore
+      .offset(offset);
+
+    const hasMore = results.length > limit;
+    const submissionList = hasMore ? results.slice(0, limit) : results;
+
+    // Get total count for the filter
+    const [{ total }] = await db
+      .select({ total: count() })
+      .from(submissions)
+      .where(and(...conditions));
+
+    return c.json({
+      submissions: submissionList,
+      total,
+      hasMore,
+    });
   });
 
   route.get('/api/submissions/:submissionId', async (c) => {

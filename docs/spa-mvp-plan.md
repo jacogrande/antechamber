@@ -1415,17 +1415,17 @@ bun run preview  # Preview production build
 **3.6 Backend**
 - [x] Add `GET /api/webhooks/:id/deliveries` endpoint for delivery history
 
-### Phase 4: Dashboard, Settings & Launch (Week 4)
+### Phase 4: Dashboard, Settings & Launch (Week 4) ✅
 
 **4.1 Dashboard**
-- [ ] Create `src/api/submissions.ts` - useSubmissions hook (read-only)
-- [ ] Create `src/components/dashboard/StatCard.tsx` - metric card
-- [ ] Create `src/components/dashboard/RecentSubmissions.tsx` - recent submissions table
-- [ ] Create `src/pages/Dashboard.tsx` - dashboard with stats and recent activity
+- [x] Create `src/api/submissions.ts` - useSubmissions hook (read-only)
+- [x] Create `src/components/dashboard/StatCard.tsx` - metric card
+- [x] Create `src/components/dashboard/RecentSubmissions.tsx` - recent submissions table
+- [x] Create `src/pages/Dashboard.tsx` - dashboard with stats and recent activity
 
 **4.2 Settings**
-- [ ] Create `src/hooks/useTenant.ts` - current tenant context
-- [ ] Create `src/pages/Settings.tsx` - tenant info, color mode preference
+- [x] Create `src/hooks/useTenant.ts` - current tenant context
+- [x] Create `src/pages/Settings.tsx` - tenant info, color mode preference
 
 **4.3 Testing & QA**
 - [ ] Manual testing of all authentication flows

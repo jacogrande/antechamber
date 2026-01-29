@@ -11,16 +11,7 @@ import {
   SchemaVersionCreate,
 } from '@/pages/schemas'
 import { Webhooks } from '@/pages/webhooks'
-
-// Placeholder pages for routes that will be implemented in later phases
-function Placeholder({ title }: { title: string }) {
-  return (
-    <div>
-      <h1>{title}</h1>
-      <p>Coming soon...</p>
-    </div>
-  )
-}
+import { Settings } from '@/pages/Settings'
 
 export const router = createBrowserRouter([
   // Public routes
@@ -67,7 +58,7 @@ export const router = createBrowserRouter([
       },
       {
         path: '/settings',
-        element: <Placeholder title="Settings" />,
+        element: <Settings />,
       },
     ],
   },

@@ -8,6 +8,7 @@ import schemas from './routes/schemas';
 import submissions from './routes/submissions';
 import webhooksRoute from './routes/webhooks';
 import cronRoute from './routes/cron';
+import statsRoute from './routes/stats';
 
 export type AppEnv = {
   Variables: {
@@ -45,12 +46,16 @@ app.use('/api/*', async (c, next) => {
 // Tenant middleware for tenant-scoped routes
 app.use('/api/schemas/*', tenantMiddleware);
 app.use('/api/submissions/*', tenantMiddleware);
+app.use('/api/submissions', tenantMiddleware);
 app.use('/api/webhooks/*', tenantMiddleware);
+app.use('/api/stats', tenantMiddleware);
+app.use('/api/tenant', tenantMiddleware);
 
 // API routes (auth routes include both login and logout)
 app.route('/', auth);
 app.route('/', schemas);
 app.route('/', submissions);
 app.route('/', webhooksRoute);
+app.route('/', statsRoute);
 
 export default app;
