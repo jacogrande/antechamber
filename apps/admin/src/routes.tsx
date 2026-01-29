@@ -4,6 +4,12 @@ import { AppShell } from '@/components/layout/AppShell'
 import { Login } from '@/pages/Login'
 import { Signup } from '@/pages/Signup'
 import { Dashboard } from '@/pages/Dashboard'
+import {
+  Schemas,
+  SchemaCreate,
+  SchemaDetail,
+  SchemaVersionCreate,
+} from '@/pages/schemas'
 
 // Placeholder pages for routes that will be implemented in later phases
 function Placeholder({ title }: { title: string }) {
@@ -40,15 +46,19 @@ export const router = createBrowserRouter([
       },
       {
         path: '/schemas',
-        element: <Placeholder title="Schemas" />,
+        element: <Schemas />,
       },
       {
         path: '/schemas/new',
-        element: <Placeholder title="New Schema" />,
+        element: <SchemaCreate />,
       },
       {
         path: '/schemas/:id',
-        element: <Placeholder title="Schema Detail" />,
+        element: <SchemaDetail />,
+      },
+      {
+        path: '/schemas/:id/versions/new',
+        element: <SchemaVersionCreate />,
       },
       {
         path: '/webhooks',

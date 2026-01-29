@@ -1338,30 +1338,51 @@ bun run preview  # Preview production build
 - [x] Create `src/components/layout/Sidebar.tsx` - navigation sidebar
 - [x] Create `src/components/layout/Header.tsx` - header with user menu, tenant selector, color mode toggle
 
-### Phase 2: Schema Management (Week 2)
+### Phase 2: Schema Management (Week 2) ✅
 
 **2.1 API Layer**
-- [ ] Create `src/api/client.ts` - fetch wrapper with auth headers
-- [ ] Create `src/api/schemas.ts` - useSchemas, useSchema, useCreateSchema, useCreateSchemaVersion hooks
+- [x] Create `src/lib/api/client.ts` - fetch wrapper with auth headers
+- [x] Create `src/lib/api/schemas.ts` - schema API functions
+- [x] Create `src/hooks/useSchemas.ts` - TanStack Query hooks (useSchemas, useSchema, useCreateSchema, useCreateSchemaVersion)
+- [x] Create `src/types/schema.ts` - FieldDefinition, Schema, SchemaVersion types
 
 **2.2 Common Components**
-- [ ] Create `src/components/common/EmptyState.tsx` - empty state with icon and CTA
-- [ ] Create `src/components/common/LoadingSpinner.tsx` - centered spinner
-- [ ] Create `src/components/common/TagInput.tsx` - tag input for arrays (enum options, source hints)
+- [x] Create `src/components/common/EmptyState.tsx` - empty state with icon and CTA
+- [x] Create `src/components/common/LoadingSpinner.tsx` - centered spinner
+- [x] Create `src/components/common/TagInput.tsx` - tag input for arrays (enum options, source hints)
+- [x] Create `src/components/common/ConfirmDialog.tsx` - confirmation modal using AlertDialog
 
 **2.3 Schema Components**
-- [ ] Create `src/components/schemas/SchemaCard.tsx` - schema summary card
-- [ ] Create `src/components/schemas/SchemaList.tsx` - grid/list of schema cards
-- [ ] Create `src/components/schemas/FieldTypeSelect.tsx` - field type dropdown
-- [ ] Create `src/components/schemas/FieldEditor.tsx` - drawer for editing a single field
-- [ ] Create `src/components/schemas/FieldList.tsx` - sortable list of fields
-- [ ] Create `src/components/schemas/SchemaBuilder.tsx` - full schema builder with field list + preview
+- [x] Create `src/components/schemas/SchemaCard.tsx` - schema summary card
+- [x] Create `src/components/schemas/SchemaList.tsx` - grid/list of schema cards
+- [x] Create `src/components/schemas/FieldTypeSelect.tsx` - field type dropdown
+- [x] Create `src/components/schemas/FieldTypeIcon.tsx` - icons for field types
+- [x] Create `src/components/schemas/FieldTypePalette.tsx` - click-to-add field buttons
+- [x] Create `src/components/schemas/FieldRow.tsx` - sortable field row with drag handle
+- [x] Create `src/components/schemas/FieldCanvas.tsx` - DnD context + sortable field list
+- [x] Create `src/components/schemas/FieldPropertiesPanel.tsx` - field editor form with progressive disclosure
+- [x] Create `src/components/schemas/EnumOptionsEditor.tsx` - TagInput for enum options
+- [x] Create `src/components/schemas/ValidationRulesEditor.tsx` - regex, minLen, maxLen inputs
+- [x] Create `src/components/schemas/SchemaBuilder.tsx` - full 3-panel schema builder
+- [x] Create `src/components/schemas/SchemaBuilderProvider.tsx` - builder state context
+- [x] Create `src/components/schemas/SchemaJsonPreview.tsx` - collapsible JSON output
+- [x] Create `src/components/schemas/SchemaVersionTimeline.tsx` - version history list
+- [x] Create `src/hooks/useSchemaBuilder.ts` - reducer-based builder state management
 
 **2.4 Schema Pages**
-- [ ] Create `src/pages/Schemas.tsx` - schema list page
-- [ ] Create `src/pages/SchemaCreate.tsx` - create new schema page
-- [ ] Create `src/pages/SchemaDetail.tsx` - view schema with version history
-- [ ] Create `src/pages/SchemaVersionCreate.tsx` - create new version page
+- [x] Create `src/pages/schemas/Schemas.tsx` - schema list page with empty state
+- [x] Create `src/pages/schemas/SchemaCreate.tsx` - create new schema page
+- [x] Create `src/pages/schemas/SchemaDetail.tsx` - view schema with version history
+- [x] Create `src/pages/schemas/SchemaVersionCreate.tsx` - create new version page
+
+**2.5 Backend Additions**
+- [x] Add `GET /api/schemas` - list all schemas for tenant
+- [x] Add `GET /api/schemas/:id` - get schema with all versions
+
+**2.6 Polish**
+- [x] Unsaved changes warning (beforeunload + navigation blocker)
+- [x] Toast notifications for save success/error
+- [x] Mobile responsive layout with bottom drawer for properties
 
 ### Phase 3: Webhook Management (Week 3)
 
@@ -1369,7 +1390,7 @@ bun run preview  # Preview production build
 - [ ] Create `src/api/webhooks.ts` - useWebhooks, useCreateWebhook, useDeleteWebhook hooks
 
 **3.2 Common Components**
-- [ ] Create `src/components/common/ConfirmDialog.tsx` - confirmation modal using AlertDialog
+- [x] Create `src/components/common/ConfirmDialog.tsx` - confirmation modal using AlertDialog (done in Phase 2)
 - [ ] Create `src/components/common/CopyButton.tsx` - copy to clipboard button
 
 **3.3 Webhook Components**

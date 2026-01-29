@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { eq, and, max } from 'drizzle-orm';
+import { eq, and, max, desc } from 'drizzle-orm';
 import type { AppEnv } from '../index';
 import { getDb } from '../db/client';
 import { schemas, schemaVersions } from '../db/schema';
@@ -12,6 +12,48 @@ function isUniqueViolation(err: unknown): boolean {
 }
 
 const schemasRoute = new Hono<AppEnv>();
+
+// List all schemas for tenant
+schemasRoute.get('/api/schemas', async (c) => {
+  const tenantId = c.get('tenantId');
+  const db = getDb();
+
+  const results = await db
+    .select()
+    .from(schemas)
+    .where(eq(schemas.tenantId, tenantId))
+    .orderBy(desc(schemas.updatedAt));
+
+  return c.json({ schemas: results });
+});
+
+// Get a single schema with its latest version
+schemasRoute.get('/api/schemas/:schemaId', async (c) => {
+  const tenantId = c.get('tenantId');
+  const schemaId = c.req.param('schemaId');
+  const db = getDb();
+
+  const [schema] = await db
+    .select()
+    .from(schemas)
+    .where(and(eq(schemas.id, schemaId), eq(schemas.tenantId, tenantId)))
+    .limit(1);
+
+  if (!schema) {
+    throw new NotFoundError('Schema not found');
+  }
+
+  // Get all versions for this schema
+  const versions = await db
+    .select()
+    .from(schemaVersions)
+    .where(eq(schemaVersions.schemaId, schemaId))
+    .orderBy(desc(schemaVersions.version));
+
+  const latestVersion = versions[0] ?? null;
+
+  return c.json({ schema, latestVersion, versions });
+});
 
 schemasRoute.post('/api/schemas', async (c) => {
   const body = await c.req.json();
