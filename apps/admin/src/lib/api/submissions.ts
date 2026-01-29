@@ -1,6 +1,7 @@
 import { apiGet, apiPost } from './client'
 import type {
   SubmissionsListResponse,
+  SubmissionDetailResponse,
   SubmissionStatus,
 } from '@/types/submission'
 
@@ -39,4 +40,12 @@ export async function createSubmission(
   params: CreateSubmissionParams
 ): Promise<CreateSubmissionResponse> {
   return apiPost<CreateSubmissionResponse>('/submissions', params)
+}
+
+export async function getSubmission(id: string): Promise<SubmissionDetailResponse> {
+  return apiGet<SubmissionDetailResponse>(`/submissions/${id}`)
+}
+
+export async function confirmSubmission(id: string): Promise<void> {
+  return apiPost<void>(`/submissions/${id}/confirm`)
 }

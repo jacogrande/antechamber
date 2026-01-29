@@ -2,6 +2,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   listSubmissions,
   createSubmission,
+  getSubmission,
+  confirmSubmission,
   type ListSubmissionsParams,
   type CreateSubmissionParams,
 } from '@/lib/api/submissions'
@@ -11,6 +13,8 @@ export const submissionKeys = {
   all: ['submissions'] as const,
   lists: () => [...submissionKeys.all, 'list'] as const,
   list: (params?: ListSubmissionsParams) => [...submissionKeys.lists(), params] as const,
+  details: () => [...submissionKeys.all, 'detail'] as const,
+  detail: (id: string) => [...submissionKeys.details(), id] as const,
 }
 
 export const statsKeys = {
@@ -43,5 +47,29 @@ export function useStats() {
   return useQuery({
     queryKey: statsKeys.dashboard(),
     queryFn: getStats,
+  })
+}
+
+export function useSubmission(id: string | undefined) {
+  return useQuery({
+    queryKey: submissionKeys.detail(id!),
+    queryFn: () => getSubmission(id!),
+    enabled: !!id,
+  })
+}
+
+export function useConfirmSubmission() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (id: string) => confirmSubmission(id),
+    onSuccess: (_data, id) => {
+      // Invalidate the specific submission detail
+      void queryClient.invalidateQueries({ queryKey: submissionKeys.detail(id) })
+      // Invalidate submissions list
+      void queryClient.invalidateQueries({ queryKey: submissionKeys.lists() })
+      // Invalidate stats
+      void queryClient.invalidateQueries({ queryKey: statsKeys.all })
+    },
   })
 }

@@ -4,19 +4,17 @@ import {
   Heading,
   Button,
   Flex,
-  Alert,
-  AlertIcon,
   useDisclosure,
   useToast,
 } from '@chakra-ui/react'
 import { HiOutlineGlobeAlt, HiPlus } from 'react-icons/hi'
 import { useWebhooks, useCreateWebhook } from '@/hooks/useWebhooks'
 import { WebhookTable, WebhookCreateModal, WebhookSecretModal } from '@/components/webhooks'
-import { EmptyState, LoadingSpinner } from '@/components/common'
+import { EmptyState, LoadingSpinner, RetryableAlert } from '@/components/common'
 import type { CreateWebhookInput, WebhookWithSecret } from '@/types/webhook'
 
 export function Webhooks() {
-  const { data: webhooks, isLoading, error } = useWebhooks()
+  const { data: webhooks, isLoading, error, refetch, isFetching } = useWebhooks()
   const createWebhook = useCreateWebhook()
   const toast = useToast()
   const {
@@ -61,10 +59,11 @@ export function Webhooks() {
 
   if (error) {
     return (
-      <Alert status="error">
-        <AlertIcon />
-        Failed to load webhooks. Please try again.
-      </Alert>
+      <RetryableAlert
+        message="Failed to load webhooks. Please try again."
+        onRetry={() => void refetch()}
+        isRetrying={isFetching}
+      />
     )
   }
 

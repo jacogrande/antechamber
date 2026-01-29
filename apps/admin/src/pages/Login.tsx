@@ -25,6 +25,7 @@ import {
   Radio,
   Stack,
   useDisclosure,
+  useToast,
 } from '@chakra-ui/react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -43,6 +44,7 @@ export function Login() {
   const navigate = useNavigate()
   const location = useLocation()
   const { signIn, selectTenant } = useAuth()
+  const toast = useToast()
   const [error, setError] = useState<string | null>(null)
   const [tenants, setTenants] = useState<TenantInfo[]>([])
   const [selectedTenantId, setSelectedTenantId] = useState<string>('')
@@ -72,6 +74,11 @@ export function Login() {
       setError('No organization access. Please contact your administrator.')
     } else {
       // Single tenant - already selected by useAuth
+      toast({
+        title: 'Welcome back!',
+        status: 'success',
+        duration: 3000,
+      })
       navigate(from, { replace: true })
     }
   }
@@ -80,6 +87,11 @@ export function Login() {
     if (selectedTenantId) {
       selectTenant(selectedTenantId)
       onClose()
+      toast({
+        title: 'Welcome back!',
+        status: 'success',
+        duration: 3000,
+      })
       navigate(from, { replace: true })
     }
   }

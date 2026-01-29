@@ -1,17 +1,24 @@
-import { Box, VStack, Text, Flex } from '@chakra-ui/react'
+import { Box, VStack, Text, Flex, Icon } from '@chakra-ui/react'
 import { Link, useLocation } from 'react-router-dom'
+import type { IconType } from 'react-icons'
+import {
+  HiOutlineChartBar,
+  HiOutlineClipboardList,
+  HiOutlineLink,
+  HiOutlineCog,
+} from 'react-icons/hi'
 
 interface NavItem {
   label: string
   path: string
-  icon: string
+  icon: IconType
 }
 
 const navItems: NavItem[] = [
-  { label: 'Dashboard', path: '/', icon: '📊' },
-  { label: 'Schemas', path: '/schemas', icon: '📋' },
-  { label: 'Webhooks', path: '/webhooks', icon: '🔗' },
-  { label: 'Settings', path: '/settings', icon: '⚙️' },
+  { label: 'Dashboard', path: '/', icon: HiOutlineChartBar },
+  { label: 'Schemas', path: '/schemas', icon: HiOutlineClipboardList },
+  { label: 'Webhooks', path: '/webhooks', icon: HiOutlineLink },
+  { label: 'Settings', path: '/settings', icon: HiOutlineCog },
 ]
 
 interface SidebarProps {
@@ -62,7 +69,7 @@ export function Sidebar({ onClose }: SidebarProps) {
               }}
               transition="all 0.15s"
             >
-              <Text fontSize="lg">{item.icon}</Text>
+              <Icon as={item.icon} boxSize={5} />
               <Text fontSize="sm">{item.label}</Text>
             </Flex>
           </Link>

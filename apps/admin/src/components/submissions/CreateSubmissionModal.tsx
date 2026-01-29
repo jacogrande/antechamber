@@ -16,6 +16,8 @@ import {
   VStack,
   Alert,
   AlertIcon,
+  CloseButton,
+  HStack,
   useToast,
 } from '@chakra-ui/react'
 import { useForm } from 'react-hook-form'
@@ -94,7 +96,10 @@ export function CreateSubmissionModal({ isOpen, onClose }: CreateSubmissionModal
               {error && (
                 <Alert status="error" borderRadius="lg">
                   <AlertIcon />
-                  {error}
+                  <HStack justify="space-between" flex={1}>
+                    <span>{error}</span>
+                    <CloseButton size="sm" onClick={() => setError(null)} />
+                  </HStack>
                 </Alert>
               )}
 

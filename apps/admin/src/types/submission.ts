@@ -38,3 +38,54 @@ export interface Tenant {
 export interface TenantResponse {
   tenant: Tenant
 }
+
+// Workflow types
+export type WorkflowStepStatus = 'pending' | 'running' | 'completed' | 'failed'
+
+export interface WorkflowStep {
+  name: string
+  status: WorkflowStepStatus
+  startedAt?: string
+  completedAt?: string
+  error?: string
+}
+
+// Citation for extracted field values
+export interface Citation {
+  sourceUrl: string
+  snippetText: string
+  confidence: number
+}
+
+// Extracted field value
+export type ExtractedFieldStatus = 'found' | 'not_found' | 'unknown'
+
+export interface ExtractedFieldValue {
+  fieldKey: string
+  fieldLabel: string
+  value: unknown
+  status: ExtractedFieldStatus
+  citations: Citation[]
+}
+
+// Crawl artifact
+export interface CrawlArtifact {
+  url: string
+  pageType: string
+  fetchedAt: string
+  statusCode: number
+}
+
+// Submission detail
+export interface SubmissionDetail extends Submission {
+  workflowRunId: string | null
+  workflowSteps: WorkflowStep[]
+  extractedFields: ExtractedFieldValue[]
+  artifacts: CrawlArtifact[]
+  confirmedAt?: string
+  confirmedBy?: string
+}
+
+export interface SubmissionDetailResponse {
+  submission: SubmissionDetail
+}

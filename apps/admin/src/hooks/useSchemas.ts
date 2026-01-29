@@ -5,6 +5,7 @@ import {
   getSchemaVersion,
   createSchema,
   createSchemaVersion,
+  deleteSchema,
   type CreateSchemaInput,
   type CreateSchemaVersionInput,
 } from '@/lib/api/schemas'
@@ -60,6 +61,20 @@ export function useCreateSchemaVersion(schemaId: string) {
     mutationFn: (input: CreateSchemaVersionInput) => createSchemaVersion(schemaId, input),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: schemaKeys.detail(schemaId) })
+    },
+  })
+}
+
+export function useDeleteSchema() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (schemaId: string) => deleteSchema(schemaId),
+    onSuccess: (_data, schemaId) => {
+      // Invalidate lists to remove deleted schema
+      queryClient.invalidateQueries({ queryKey: schemaKeys.lists() })
+      // Remove the detail query from cache
+      queryClient.removeQueries({ queryKey: schemaKeys.detail(schemaId) })
     },
   })
 }

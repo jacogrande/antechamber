@@ -8,6 +8,7 @@ import {
   Icon,
   Button,
   HStack,
+  VStack,
   useDisclosure,
 } from '@chakra-ui/react'
 import {
@@ -21,11 +22,24 @@ import { useAuth } from '@/hooks/useAuth'
 import { useStats, useSubmissions } from '@/hooks/useSubmissions'
 import { StatCard, RecentSubmissions } from '@/components/dashboard'
 import { CreateSubmissionModal } from '@/components/submissions'
+import { RetryableAlert } from '@/components/common'
 
 export function Dashboard() {
   const { user } = useAuth()
-  const { data: stats, isLoading: statsLoading } = useStats()
-  const { data: submissionsData, isLoading: submissionsLoading } = useSubmissions({ limit: 5 })
+  const {
+    data: stats,
+    isLoading: statsLoading,
+    error: statsError,
+    refetch: refetchStats,
+    isFetching: isStatsFetching,
+  } = useStats()
+  const {
+    data: submissionsData,
+    isLoading: submissionsLoading,
+    error: submissionsError,
+    refetch: refetchSubmissions,
+    isFetching: isSubmissionsFetching,
+  } = useSubmissions({ limit: 5 })
   const { isOpen, onOpen, onClose } = useDisclosure()
 
   const hasData = stats && (
@@ -111,6 +125,25 @@ export function Dashboard() {
           isLoading={statsLoading}
         />
       </SimpleGrid>
+
+      {(statsError || submissionsError) && (
+        <VStack spacing={3} mb={6} align="stretch">
+          {statsError && (
+            <RetryableAlert
+              message="Failed to load statistics."
+              onRetry={() => void refetchStats()}
+              isRetrying={isStatsFetching}
+            />
+          )}
+          {submissionsError && (
+            <RetryableAlert
+              message="Failed to load recent submissions."
+              onRetry={() => void refetchSubmissions()}
+              isRetrying={isSubmissionsFetching}
+            />
+          )}
+        </VStack>
+      )}
 
       <RecentSubmissions
         submissions={submissionsData?.submissions ?? []}

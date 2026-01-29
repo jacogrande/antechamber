@@ -13,6 +13,7 @@ import {
   Text,
   Skeleton,
 } from '@chakra-ui/react'
+import { useNavigate } from 'react-router-dom'
 import { HiOutlineInbox } from 'react-icons/hi'
 import type { Submission } from '@/types/submission'
 import { SubmissionStatusBadge } from './SubmissionStatusBadge'
@@ -81,6 +82,12 @@ export function RecentSubmissions({
   submissions,
   isLoading = false,
 }: RecentSubmissionsProps) {
+  const navigate = useNavigate()
+
+  const handleRowClick = (id: string) => {
+    navigate(`/submissions/${id}`)
+  }
+
   return (
     <Card variant="outline">
       <CardHeader pb={2}>
@@ -108,7 +115,13 @@ export function RecentSubmissions({
               </Thead>
               <Tbody>
                 {submissions.map((submission) => (
-                  <Tr key={submission.id}>
+                  <Tr
+                    key={submission.id}
+                    onClick={() => handleRowClick(submission.id)}
+                    cursor="pointer"
+                    _hover={{ bg: 'bg.subtle' }}
+                    transition="background 0.15s"
+                  >
                     <Td>
                       <Text
                         fontFamily="mono"

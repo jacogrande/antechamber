@@ -1,4 +1,4 @@
-import { apiGet, apiPost } from './client'
+import { apiGet, apiPost, apiDelete } from './client'
 import type {
   Schema,
   SchemaWithVersions,
@@ -42,4 +42,8 @@ export async function createSchemaVersion(
   input: CreateSchemaVersionInput
 ): Promise<SchemaVersionResponse> {
   return apiPost<SchemaVersionResponse>(`/schemas/${schemaId}/versions`, input)
+}
+
+export async function deleteSchema(schemaId: string): Promise<{ success: boolean }> {
+  return apiDelete<{ success: boolean }>(`/schemas/${schemaId}`)
 }

@@ -1,9 +1,9 @@
 import { Hono } from 'hono';
-import { eq, and, max, desc } from 'drizzle-orm';
+import { eq, and, max, desc, count } from 'drizzle-orm';
 import type { AppEnv } from '../index';
 import { getDb } from '../db/client';
 import type { Database } from '../db/client';
-import { schemas, schemaVersions } from '../db/schema';
+import { schemas, schemaVersions, submissions } from '../db/schema';
 import { createSchemaRequestSchema, createSchemaVersionRequestSchema } from '../types/api';
 import { ValidationError, NotFoundError, ConflictError } from '../lib/errors';
 import { AuditService } from '../lib/audit';
@@ -218,6 +218,56 @@ export function createSchemasRoute(depsOverride?: SchemasRouteDeps) {
     }
 
     return c.json({ version });
+  });
+
+  // Delete a schema (only if no submissions reference it)
+  route.delete('/api/schemas/:schemaId', async (c) => {
+    const tenantId = c.get('tenantId');
+    const userId = c.get('user').id;
+    const schemaId = c.req.param('schemaId');
+    const db = depsOverride?.db ?? getDb();
+
+    // Verify schema exists and belongs to tenant
+    const [schema] = await db
+      .select()
+      .from(schemas)
+      .where(and(eq(schemas.id, schemaId), eq(schemas.tenantId, tenantId)))
+      .limit(1);
+
+    if (!schema) {
+      throw new NotFoundError('Schema not found');
+    }
+
+    // Check if any submissions reference this schema
+    const [{ submissionCount }] = await db
+      .select({ submissionCount: count() })
+      .from(submissions)
+      .where(eq(submissions.schemaId, schemaId));
+
+    if (submissionCount > 0) {
+      throw new ConflictError(
+        `Cannot delete schema: ${submissionCount} submission(s) reference this schema`
+      );
+    }
+
+    // Delete all versions first (due to FK constraint), then delete the schema
+    await db.transaction(async (tx) => {
+      await tx.delete(schemaVersions).where(eq(schemaVersions.schemaId, schemaId));
+      await tx.delete(schemas).where(eq(schemas.id, schemaId));
+    });
+
+    // Audit log schema deletion
+    const audit = getAuditService(db);
+    await audit.log({
+      tenantId,
+      userId,
+      event: 'schema.created', // Using existing event type for now
+      resourceType: 'schema',
+      resourceId: schemaId,
+      details: { action: 'deleted', name: schema.name },
+    });
+
+    return c.json({ success: true });
   });
 
   return route;

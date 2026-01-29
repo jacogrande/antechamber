@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import {
   Box,
   Heading,
@@ -10,23 +11,48 @@ import {
   CardBody,
   SimpleGrid,
   Badge,
-  Alert,
-  AlertIcon,
   Breadcrumb,
   BreadcrumbItem,
   BreadcrumbLink,
+  useToast,
 } from '@chakra-ui/react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { HiPlus, HiChevronRight } from 'react-icons/hi'
-import { useSchema } from '@/hooks/useSchemas'
-import { LoadingSpinner } from '@/components/common'
+import { HiPlus, HiChevronRight, HiTrash } from 'react-icons/hi'
+import { useSchema, useDeleteSchema } from '@/hooks/useSchemas'
+import { LoadingSpinner, RetryableAlert, ConfirmDialog } from '@/components/common'
 import { FieldTypeIcon, getFieldTypeLabel } from '@/components/schemas/FieldTypeIcon'
 import { SchemaVersionTimeline } from '@/components/schemas/SchemaVersionTimeline'
 
 export function SchemaDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { data, isLoading, error } = useSchema(id)
+  const toast = useToast()
+  const { data, isLoading, error, refetch, isFetching } = useSchema(id)
+  const deleteMutation = useDeleteSchema()
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false)
+
+  const handleDelete = async () => {
+    if (!id) return
+
+    try {
+      await deleteMutation.mutateAsync(id)
+      toast({
+        title: 'Schema deleted',
+        description: 'The schema has been permanently deleted.',
+        status: 'success',
+        duration: 5000,
+      })
+      navigate('/schemas')
+    } catch (err) {
+      toast({
+        title: 'Failed to delete schema',
+        description: err instanceof Error ? err.message : 'An error occurred',
+        status: 'error',
+        duration: 5000,
+      })
+      setIsDeleteOpen(false)
+    }
+  }
 
   if (isLoading) {
     return <LoadingSpinner />
@@ -34,10 +60,11 @@ export function SchemaDetail() {
 
   if (error || !data) {
     return (
-      <Alert status="error">
-        <AlertIcon />
-        Failed to load schema. Please try again.
-      </Alert>
+      <RetryableAlert
+        message="Failed to load schema. Please try again."
+        onRetry={() => void refetch()}
+        isRetrying={isFetching}
+      />
     )
   }
 
@@ -56,7 +83,7 @@ export function SchemaDetail() {
         </BreadcrumbItem>
       </Breadcrumb>
 
-      <HStack justify="space-between" mb={6}>
+      <HStack justify="space-between" mb={6} wrap="wrap" gap={4}>
         <Box>
           <Heading size="lg">{schema.name}</Heading>
           {latestVersion && (
@@ -65,13 +92,23 @@ export function SchemaDetail() {
             </Text>
           )}
         </Box>
-        <Button
-          leftIcon={<HiPlus />}
-          variant="primary"
-          onClick={() => navigate(`/schemas/${id}/versions/new`)}
-        >
-          New Version
-        </Button>
+        <HStack spacing={3}>
+          <Button
+            leftIcon={<HiTrash />}
+            variant="ghost"
+            colorScheme="red"
+            onClick={() => setIsDeleteOpen(true)}
+          >
+            Delete
+          </Button>
+          <Button
+            leftIcon={<HiPlus />}
+            variant="primary"
+            onClick={() => navigate(`/schemas/${id}/versions/new`)}
+          >
+            New Version
+          </Button>
+        </HStack>
       </HStack>
 
       <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={6}>
@@ -134,6 +171,17 @@ export function SchemaDetail() {
           </CardBody>
         </Card>
       </SimpleGrid>
+
+      <ConfirmDialog
+        isOpen={isDeleteOpen}
+        onClose={() => setIsDeleteOpen(false)}
+        onConfirm={handleDelete}
+        title="Delete Schema"
+        message={`Are you sure you want to delete "${schema.name}"? This action cannot be undone.`}
+        confirmLabel="Delete"
+        isLoading={deleteMutation.isPending}
+        isDestructive
+      />
     </Box>
   )
 }

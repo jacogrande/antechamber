@@ -130,12 +130,33 @@ export function useAuth() {
     setTenantId(tenantId)
   }, [])
 
+  const changePassword = useCallback(
+    async (newPassword: string): Promise<{ error: AuthError | null }> => {
+      const { error } = await supabase.auth.updateUser({ password: newPassword })
+      return { error }
+    },
+    []
+  )
+
+  const resendVerificationEmail = useCallback(
+    async (email: string): Promise<{ error: AuthError | null }> => {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email,
+      })
+      return { error }
+    },
+    []
+  )
+
   return {
     ...state,
     signIn,
     signUp,
     signOut,
     selectTenant,
+    changePassword,
+    resendVerificationEmail,
     isAuthenticated: !!state.session,
   }
 }

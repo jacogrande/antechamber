@@ -1,13 +1,13 @@
-import { Box, Heading, Button, Flex, Alert, AlertIcon } from '@chakra-ui/react'
+import { Box, Heading, Button, Flex } from '@chakra-ui/react'
 import { useNavigate } from 'react-router-dom'
 import { HiOutlineDocumentText, HiPlus } from 'react-icons/hi'
 import { useSchemas } from '@/hooks/useSchemas'
 import { SchemaList } from '@/components/schemas/SchemaList'
-import { EmptyState, LoadingSpinner } from '@/components/common'
+import { EmptyState, LoadingSpinner, RetryableAlert } from '@/components/common'
 
 export function Schemas() {
   const navigate = useNavigate()
-  const { data: schemas, isLoading, error } = useSchemas()
+  const { data: schemas, isLoading, error, refetch, isFetching } = useSchemas()
 
   if (isLoading) {
     return <LoadingSpinner />
@@ -15,10 +15,11 @@ export function Schemas() {
 
   if (error) {
     return (
-      <Alert status="error">
-        <AlertIcon />
-        Failed to load schemas. Please try again.
-      </Alert>
+      <RetryableAlert
+        message="Failed to load schemas. Please try again."
+        onRetry={() => void refetch()}
+        isRetrying={isFetching}
+      />
     )
   }
 

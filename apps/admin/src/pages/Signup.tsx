@@ -15,11 +15,14 @@ import {
   Alert,
   AlertIcon,
   Center,
+  useToast,
+  Icon,
 } from '@chakra-ui/react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Link } from 'react-router-dom'
+import { HiOutlineMail } from 'react-icons/hi'
 import { useAuth } from '@/hooks/useAuth'
 
 const signupSchema = z
@@ -36,9 +39,12 @@ const signupSchema = z
 type SignupForm = z.infer<typeof signupSchema>
 
 export function Signup() {
-  const { signUp } = useAuth()
+  const { signUp, resendVerificationEmail } = useAuth()
+  const toast = useToast()
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
+  const [registeredEmail, setRegisteredEmail] = useState<string>('')
+  const [isResending, setIsResending] = useState(false)
 
   const {
     register,
@@ -54,7 +60,33 @@ export function Signup() {
     if (result.error) {
       setError(result.error.message)
     } else {
+      setRegisteredEmail(data.email)
       setSuccess(true)
+    }
+  }
+
+  const handleResendEmail = async () => {
+    if (!registeredEmail) return
+    setIsResending(true)
+    try {
+      const { error: resendError } = await resendVerificationEmail(registeredEmail)
+      if (resendError) {
+        toast({
+          title: 'Failed to resend email',
+          description: resendError.message,
+          status: 'error',
+          duration: 5000,
+        })
+      } else {
+        toast({
+          title: 'Email sent',
+          description: 'A new verification email has been sent.',
+          status: 'success',
+          duration: 5000,
+        })
+      }
+    } finally {
+      setIsResending(false)
     }
   }
 
@@ -64,12 +96,21 @@ export function Signup() {
         <Card maxW="md" w="full" variant="outline">
           <CardBody>
             <VStack spacing={4} textAlign="center">
-              <Text fontSize="4xl">📧</Text>
+              <Icon as={HiOutlineMail} boxSize={12} color="brand.500" />
               <Heading size="md">Check your email</Heading>
               <Text color="text.muted">
                 We've sent you a verification link. Please check your email to
                 complete your registration.
               </Text>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => void handleResendEmail()}
+                isLoading={isResending}
+                loadingText="Sending..."
+              >
+                Didn't receive it? Resend email
+              </Button>
               <ChakraLink as={Link} to="/login" color="brand.600">
                 Back to login
               </ChakraLink>

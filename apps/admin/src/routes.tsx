@@ -10,6 +10,7 @@ import {
   SchemaDetail,
   SchemaVersionCreate,
 } from '@/pages/schemas'
+import { SubmissionDetail } from '@/pages/submissions'
 import { Webhooks } from '@/pages/webhooks'
 import { Settings } from '@/pages/Settings'
 
@@ -51,6 +52,10 @@ export const router = createBrowserRouter([
       {
         path: '/schemas/:id/versions/new',
         element: <SchemaVersionCreate />,
+      },
+      {
+        path: '/submissions/:id',
+        element: <SubmissionDetail />,
       },
       {
         path: '/webhooks',
