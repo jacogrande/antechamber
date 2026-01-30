@@ -111,7 +111,7 @@ export function SubmissionDetail() {
             <CardTitle className="text-base">Workflow Progress</CardTitle>
           </CardHeader>
           <CardContent>
-            <WorkflowProgress steps={submission.workflowSteps} />
+            <WorkflowProgress steps={submission.workflowSteps ?? []} />
           </CardContent>
         </Card>
 
@@ -121,13 +121,13 @@ export function SubmissionDetail() {
             <div className="flex items-center justify-between">
               <CardTitle className="text-base">Extracted Fields</CardTitle>
               <span className="text-sm text-muted-foreground">
-                {submission.extractedFields.filter((f) => f.status === 'found').length} /{' '}
-                {submission.extractedFields.length} found
+                {(submission.extractedFields ?? []).filter((f) => f.status === 'found').length} /{' '}
+                {(submission.extractedFields ?? []).length} found
               </span>
             </div>
           </CardHeader>
           <CardContent>
-            <ExtractedFieldsTable fields={submission.extractedFields} />
+            <ExtractedFieldsTable fields={submission.extractedFields ?? []} />
           </CardContent>
         </Card>
       </div>
@@ -138,7 +138,7 @@ export function SubmissionDetail() {
           <CardTitle className="text-base">Crawled Pages</CardTitle>
         </CardHeader>
         <CardContent>
-          {submission.artifacts.length === 0 ? (
+          {!submission.artifacts?.length ? (
             <p className="text-sm text-muted-foreground">No pages crawled yet.</p>
           ) : (
             <div className="overflow-x-auto">

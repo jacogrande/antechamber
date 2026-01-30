@@ -80,9 +80,9 @@ export interface CrawlArtifact {
 // Submission detail
 export interface SubmissionDetail extends Submission {
   workflowRunId: string | null
-  workflowSteps: WorkflowStep[]
-  extractedFields: ExtractedFieldValue[]
-  artifacts: CrawlArtifact[]
+  workflowSteps?: WorkflowStep[]
+  extractedFields?: ExtractedFieldValue[]
+  artifacts?: CrawlArtifact[]
   confirmedAt?: string
   confirmedBy?: string
 }
