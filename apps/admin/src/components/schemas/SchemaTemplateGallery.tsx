@@ -29,6 +29,7 @@ interface SchemaTemplateGalleryProps {
 }
 
 const categories: SchemaCategory[] = [
+  'ai',
   'sales',
   'hr',
   'finance',
