@@ -1,13 +1,13 @@
-import { Center, Spinner } from '@chakra-ui/react'
+import { Spinner } from '@/components/ui/spinner'
 
 interface LoadingSpinnerProps {
-  size?: 'sm' | 'md' | 'lg' | 'xl'
+  size?: 'sm' | 'default' | 'lg'
 }
 
 export function LoadingSpinner({ size = 'lg' }: LoadingSpinnerProps) {
   return (
-    <Center py={16}>
-      <Spinner size={size} color="brand.600" thickness="3px" />
-    </Center>
+    <div className="flex items-center justify-center py-16">
+      <Spinner size={size} />
+    </div>
   )
 }

@@ -1,8 +1,8 @@
-import { VStack, Icon, Heading, Text, Button } from '@chakra-ui/react'
-import type { IconType } from 'react-icons'
+import type { LucideIcon } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 
 interface EmptyStateProps {
-  icon: IconType
+  icon: LucideIcon
   title: string
   description: string
   actionLabel?: string
@@ -10,32 +10,24 @@ interface EmptyStateProps {
 }
 
 export function EmptyState({
-  icon,
+  icon: Icon,
   title,
   description,
   actionLabel,
   onAction,
 }: EmptyStateProps) {
   return (
-    <VStack
-      spacing={4}
-      py={16}
-      px={8}
-      textAlign="center"
-      color="text.muted"
-    >
-      <Icon as={icon} boxSize={12} />
-      <VStack spacing={2}>
-        <Heading size="md" color="text.default">
-          {title}
-        </Heading>
-        <Text maxW="sm">{description}</Text>
-      </VStack>
+    <div className="flex flex-col items-center gap-4 py-16 px-8 text-center">
+      <div className="rounded-xl bg-muted p-4">
+        <Icon className="h-10 w-10 text-muted-foreground" />
+      </div>
+      <div className="flex flex-col gap-2">
+        <h3 className="text-lg font-semibold text-foreground">{title}</h3>
+        <p className="max-w-sm text-muted-foreground">{description}</p>
+      </div>
       {actionLabel && onAction && (
-        <Button variant="primary" onClick={onAction}>
-          {actionLabel}
-        </Button>
+        <Button onClick={onAction}>{actionLabel}</Button>
       )}
-    </VStack>
+    </div>
   )
 }

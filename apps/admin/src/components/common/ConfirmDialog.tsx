@@ -1,13 +1,16 @@
-import { useRef } from 'react'
 import {
   AlertDialog,
-  AlertDialogBody,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
-  AlertDialogContent,
-  AlertDialogOverlay,
-  Button,
-} from '@chakra-ui/react'
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { buttonVariants } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
+import { Loader2 } from 'lucide-react'
 
 interface ConfirmDialogProps {
   isOpen: boolean
@@ -32,36 +35,27 @@ export function ConfirmDialog({
   isDestructive = false,
   isLoading = false,
 }: ConfirmDialogProps) {
-  const cancelRef = useRef<HTMLButtonElement>(null)
-
   return (
-    <AlertDialog
-      isOpen={isOpen}
-      leastDestructiveRef={cancelRef}
-      onClose={onClose}
-    >
-      <AlertDialogOverlay>
-        <AlertDialogContent>
-          <AlertDialogHeader fontSize="lg" fontWeight="semibold">
-            {title}
-          </AlertDialogHeader>
-
-          <AlertDialogBody>{message}</AlertDialogBody>
-
-          <AlertDialogFooter gap={3}>
-            <Button ref={cancelRef} variant="ghost" onClick={onClose}>
-              {cancelLabel}
-            </Button>
-            <Button
-              variant={isDestructive ? 'danger' : 'primary'}
-              onClick={onConfirm}
-              isLoading={isLoading}
-            >
-              {confirmLabel}
-            </Button>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialogOverlay>
+    <AlertDialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{title}</AlertDialogTitle>
+          <AlertDialogDescription>{message}</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={isLoading}>{cancelLabel}</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={onConfirm}
+            disabled={isLoading}
+            className={cn(
+              isDestructive && buttonVariants({ variant: 'destructive' })
+            )}
+          >
+            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {confirmLabel}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
     </AlertDialog>
   )
 }

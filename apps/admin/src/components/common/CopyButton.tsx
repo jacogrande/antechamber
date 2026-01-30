@@ -1,37 +1,58 @@
-import { useState } from 'react'
-import { IconButton, Tooltip, useClipboard } from '@chakra-ui/react'
-import { HiOutlineClipboardCopy, HiOutlineClipboardCheck } from 'react-icons/hi'
+import { useState, useCallback } from 'react'
+import { Check, Copy } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
+import { cn } from '@/lib/utils'
 
 interface CopyButtonProps {
   value: string
   label?: string
-  size?: 'xs' | 'sm' | 'md'
+  size?: 'sm' | 'default' | 'lg'
 }
 
 export function CopyButton({ value, label = 'Copy', size = 'sm' }: CopyButtonProps) {
-  const { onCopy, hasCopied } = useClipboard(value)
-  const [showTooltip, setShowTooltip] = useState(false)
+  const [hasCopied, setHasCopied] = useState(false)
 
-  const handleClick = () => {
-    onCopy()
-    setShowTooltip(true)
-    setTimeout(() => setShowTooltip(false), 2000)
+  const handleClick = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(value)
+      setHasCopied(true)
+      setTimeout(() => setHasCopied(false), 2000)
+    } catch (err) {
+      console.error('Failed to copy:', err)
+    }
+  }, [value])
+
+  const sizeClasses = {
+    sm: 'h-8 w-8',
+    default: 'h-9 w-9',
+    lg: 'h-10 w-10',
   }
 
   return (
-    <Tooltip
-      label={hasCopied ? 'Copied!' : label}
-      isOpen={showTooltip || undefined}
-      closeOnClick={false}
-    >
-      <IconButton
-        aria-label={hasCopied ? 'Copied' : label}
-        icon={hasCopied ? <HiOutlineClipboardCheck /> : <HiOutlineClipboardCopy />}
-        size={size}
-        variant="ghost"
-        onClick={handleClick}
-        color={hasCopied ? 'status.success' : 'text.muted'}
-      />
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          className={cn(sizeClasses[size])}
+          onClick={handleClick}
+          aria-label={hasCopied ? 'Copied' : label}
+        >
+          {hasCopied ? (
+            <Check className="h-4 w-4 text-success" />
+          ) : (
+            <Copy className="h-4 w-4 text-muted-foreground" />
+          )}
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>
+        <p>{hasCopied ? 'Copied!' : label}</p>
+      </TooltipContent>
     </Tooltip>
   )
 }

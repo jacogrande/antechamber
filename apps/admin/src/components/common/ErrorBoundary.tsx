@@ -1,14 +1,6 @@
 import { Component, type ReactNode } from 'react'
-import {
-  Box,
-  Button,
-  Heading,
-  Text,
-  VStack,
-  Card,
-  CardBody,
-  Center,
-} from '@chakra-ui/react'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
 
 interface ErrorBoundaryProps {
   children: ReactNode
@@ -44,44 +36,31 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   render() {
     if (this.state.hasError) {
       return (
-        <Center minH="100vh" bg="bg.canvas" p={4}>
-          <Card maxW="lg" w="full" variant="outline">
-            <CardBody>
-              <VStack spacing={4} textAlign="center">
-                <Heading size="lg" color="red.500">
+        <div className="flex min-h-screen items-center justify-center bg-background p-4">
+          <Card className="w-full max-w-lg">
+            <CardContent className="pt-6">
+              <div className="flex flex-col items-center gap-4 text-center">
+                <h2 className="text-2xl font-bold text-destructive">
                   Something went wrong
-                </Heading>
-                <Text color="text.muted">
+                </h2>
+                <p className="text-muted-foreground">
                   An unexpected error occurred. Please try reloading the page.
-                </Text>
+                </p>
                 {this.state.error && (
-                  <Box
-                    p={3}
-                    bg="gray.50"
-                    borderRadius="md"
-                    w="full"
-                    textAlign="left"
-                    fontFamily="mono"
-                    fontSize="sm"
-                    color="gray.600"
-                    maxH="150px"
-                    overflowY="auto"
-                  >
+                  <div className="w-full max-h-[150px] overflow-y-auto rounded-md bg-muted p-3 text-left font-mono text-sm text-muted-foreground">
                     {this.state.error.message}
-                  </Box>
+                  </div>
                 )}
-                <Box pt={2}>
-                  <Button variant="primary" onClick={this.handleReload} mr={3}>
-                    Reload Page
-                  </Button>
+                <div className="flex gap-3 pt-2">
+                  <Button onClick={this.handleReload}>Reload Page</Button>
                   <Button variant="ghost" onClick={this.handleReset}>
                     Try Again
                   </Button>
-                </Box>
-              </VStack>
-            </CardBody>
+                </div>
+              </div>
+            </CardContent>
           </Card>
-        </Center>
+        </div>
       )
     }
 

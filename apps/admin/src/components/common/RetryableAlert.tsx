@@ -1,5 +1,6 @@
-import { Alert, AlertIcon, Button, HStack, Text } from '@chakra-ui/react'
-import { HiRefresh } from 'react-icons/hi'
+import { RefreshCw, AlertCircle } from 'lucide-react'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
 
 interface RetryableAlertProps {
   message: string
@@ -13,21 +14,21 @@ export function RetryableAlert({
   isRetrying = false,
 }: RetryableAlertProps) {
   return (
-    <Alert status="error" borderRadius="lg">
-      <AlertIcon />
-      <HStack justify="space-between" flex={1}>
-        <Text>{message}</Text>
+    <Alert variant="destructive">
+      <AlertCircle className="h-4 w-4" />
+      <AlertDescription className="flex items-center justify-between flex-1">
+        <span>{message}</span>
         <Button
           size="sm"
           variant="ghost"
-          leftIcon={<HiRefresh />}
           onClick={onRetry}
-          isLoading={isRetrying}
-          loadingText="Retrying"
+          disabled={isRetrying}
+          className="ml-4"
         >
-          Retry
+          <RefreshCw className={`mr-2 h-4 w-4 ${isRetrying ? 'animate-spin' : ''}`} />
+          {isRetrying ? 'Retrying' : 'Retry'}
         </Button>
-      </HStack>
+      </AlertDescription>
     </Alert>
   )
 }
