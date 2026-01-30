@@ -61,48 +61,50 @@ export function WorkflowProgress({ steps }: WorkflowProgressProps) {
   }
 
   return (
-    <div className="flex flex-col">
+    <div className="flex items-center gap-2">
       {steps.map((step, index) => {
         const style = statusStyles[step.status]
         const isLast = index === steps.length - 1
 
         return (
-          <div key={step.name} className="flex items-start gap-3 relative">
+          <div key={step.name} className="flex items-center gap-2 flex-1">
+            {/* Step */}
+            <div className="flex items-center gap-2 flex-1">
+              {/* Step indicator */}
+              <div
+                className={cn(
+                  'w-7 h-7 rounded-full border-2 flex items-center justify-center flex-shrink-0',
+                  style.bg,
+                  style.border
+                )}
+              >
+                <StepIcon status={step.status} />
+              </div>
+
+              {/* Step content */}
+              <div className="flex flex-col min-w-0">
+                <span className="font-medium text-sm truncate">
+                  {formatStepName(step.name)}
+                </span>
+                {step.error ? (
+                  <span className="text-red-500 text-xs truncate">{step.error}</span>
+                ) : step.completedAt ? (
+                  <span className="text-muted-foreground text-xs">
+                    {new Date(step.completedAt).toLocaleTimeString()}
+                  </span>
+                ) : null}
+              </div>
+            </div>
+
             {/* Connector line */}
             {!isLast && (
               <div
                 className={cn(
-                  'absolute left-[14px] top-8 w-0.5 h-[calc(100%-8px)]',
-                  step.status === 'completed' ? 'bg-green-200 dark:bg-green-800' : 'bg-border'
+                  'h-0.5 w-8 flex-shrink-0',
+                  step.status === 'completed' ? 'bg-green-300 dark:bg-green-700' : 'bg-border'
                 )}
               />
             )}
-
-            {/* Step indicator */}
-            <div
-              className={cn(
-                'w-8 h-8 rounded-full border-2 flex items-center justify-center z-10',
-                style.bg,
-                style.border
-              )}
-            >
-              <StepIcon status={step.status} />
-            </div>
-
-            {/* Step content */}
-            <div className="flex flex-col py-1 flex-1">
-              <span className="font-medium text-sm">
-                {formatStepName(step.name)}
-              </span>
-              {step.error && (
-                <span className="text-red-500 text-xs">{step.error}</span>
-              )}
-              {step.completedAt && (
-                <span className="text-muted-foreground text-xs">
-                  Completed {new Date(step.completedAt).toLocaleTimeString()}
-                </span>
-              )}
-            </div>
           </div>
         )
       })}
