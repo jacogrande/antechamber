@@ -1,5 +1,6 @@
-import { ExternalLink, Info } from 'lucide-react'
+import { ExternalLink, Info, HelpCircle } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
 import {
   Table,
   TableBody,
@@ -13,11 +14,15 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { Checkbox } from '@/components/ui/checkbox'
 import { FieldTypeIcon } from '@/components/schemas/FieldTypeIcon'
 import type { ExtractedFieldValue, ExtractedFieldStatus } from '@/types/submission'
 
 interface ExtractedFieldsTableProps {
   fields: ExtractedFieldValue[]
+  isEditing?: boolean
+  fieldEdits?: Record<string, unknown>
+  onFieldEdit?: (fieldKey: string, value: unknown) => void
 }
 
 const statusConfig: Record<
@@ -27,6 +32,85 @@ const statusConfig: Record<
   found: { label: 'Found', variant: 'default' },
   not_found: { label: 'Not Found', variant: 'secondary' },
   unknown: { label: 'Unknown', variant: 'destructive' },
+}
+
+function ConfidenceIndicator({ confidence }: { confidence: number }) {
+  const percent = Math.round(confidence * 100)
+  let colorClass = 'bg-red-500'
+  if (percent >= 80) colorClass = 'bg-green-500'
+  else if (percent >= 50) colorClass = 'bg-yellow-500'
+  else if (percent >= 20) colorClass = 'bg-orange-500'
+
+  return (
+    <div className="flex items-center gap-2">
+      <div className="w-16 h-2 bg-muted rounded-full overflow-hidden">
+        <div
+          className={`h-full ${colorClass} transition-all`}
+          style={{ width: `${percent}%` }}
+        />
+      </div>
+      <span className="text-xs text-muted-foreground w-8">{percent}%</span>
+    </div>
+  )
+}
+
+interface FieldEditorProps {
+  field: ExtractedFieldValue
+  value: unknown
+  onChange: (value: unknown) => void
+}
+
+function FieldEditor({ field, value, onChange }: FieldEditorProps) {
+  const currentValue = value ?? field.value
+
+  switch (field.fieldType) {
+    case 'boolean':
+      return (
+        <div className="flex items-center gap-2">
+          <Checkbox
+            checked={currentValue === true}
+            onCheckedChange={(checked) => onChange(checked === true)}
+          />
+          <span className="text-sm">{currentValue ? 'Yes' : 'No'}</span>
+        </div>
+      )
+    case 'enum':
+      // For enum, we'd need the options from the schema
+      // For now, treat as text input
+      return (
+        <Input
+          value={String(currentValue ?? '')}
+          onChange={(e) => onChange(e.target.value)}
+          className="h-8 text-sm"
+        />
+      )
+    case 'number':
+      return (
+        <Input
+          type="number"
+          value={String(currentValue ?? '')}
+          onChange={(e) => onChange(e.target.value ? Number(e.target.value) : null)}
+          className="h-8 text-sm w-32"
+        />
+      )
+    case 'string[]':
+      return (
+        <Input
+          value={Array.isArray(currentValue) ? currentValue.join(', ') : String(currentValue ?? '')}
+          onChange={(e) => onChange(e.target.value.split(',').map((s) => s.trim()).filter(Boolean))}
+          placeholder="Comma-separated values"
+          className="h-8 text-sm"
+        />
+      )
+    default:
+      return (
+        <Input
+          value={String(currentValue ?? '')}
+          onChange={(e) => onChange(e.target.value)}
+          className="h-8 text-sm"
+        />
+      )
+  }
 }
 
 function formatValue(value: unknown): string {
@@ -45,7 +129,12 @@ function formatValue(value: unknown): string {
   return String(value)
 }
 
-export function ExtractedFieldsTable({ fields }: ExtractedFieldsTableProps) {
+export function ExtractedFieldsTable({
+  fields,
+  isEditing = false,
+  fieldEdits = {},
+  onFieldEdit,
+}: ExtractedFieldsTableProps) {
   if (fields.length === 0) {
     return (
       <p className="text-muted-foreground text-sm">
@@ -61,6 +150,7 @@ export function ExtractedFieldsTable({ fields }: ExtractedFieldsTableProps) {
           <TableRow>
             <TableHead>Field</TableHead>
             <TableHead>Value</TableHead>
+            <TableHead>Confidence</TableHead>
             <TableHead>Status</TableHead>
             <TableHead>Citations</TableHead>
           </TableRow>
@@ -68,8 +158,11 @@ export function ExtractedFieldsTable({ fields }: ExtractedFieldsTableProps) {
         <TableBody>
           {fields.map((field) => {
             const status = statusConfig[field.status]
+            const hasEdit = field.fieldKey in fieldEdits
+            const editedValue = fieldEdits[field.fieldKey]
+
             return (
-              <TableRow key={field.fieldKey}>
+              <TableRow key={field.fieldKey} className={hasEdit ? 'bg-yellow-50 dark:bg-yellow-950/20' : undefined}>
                 <TableCell>
                   <div className="flex items-center gap-3">
                     {field.fieldType && (
@@ -87,48 +180,91 @@ export function ExtractedFieldsTable({ fields }: ExtractedFieldsTableProps) {
                   </div>
                 </TableCell>
                 <TableCell>
-                  <span
-                    className="max-w-[300px] truncate block"
-                    title={formatValue(field.value)}
-                  >
-                    {formatValue(field.value)}
-                  </span>
-                </TableCell>
-                <TableCell>
-                  <Badge variant={status.variant}>{status.label}</Badge>
-                </TableCell>
-                <TableCell>
-                  {field.citations.length > 0 ? (
-                    <div className="flex items-center gap-1">
-                      {field.citations.map((citation, idx) => (
-                        <Tooltip key={idx}>
-                          <TooltipTrigger asChild>
-                            <a
-                              href={citation.sourceUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center text-primary hover:text-primary/80"
-                            >
-                              <ExternalLink className="h-4 w-4" />
-                            </a>
+                  {isEditing && onFieldEdit ? (
+                    <FieldEditor
+                      field={field}
+                      value={editedValue}
+                      onChange={(value) => onFieldEdit(field.fieldKey, value)}
+                    />
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="max-w-[250px] truncate block"
+                        title={formatValue(hasEdit ? editedValue : field.value)}
+                      >
+                        {formatValue(hasEdit ? editedValue : field.value)}
+                      </span>
+                      {field.reason && (
+                        <Tooltip>
+                          <TooltipTrigger>
+                            <HelpCircle className="h-3.5 w-3.5 text-muted-foreground" />
                           </TooltipTrigger>
                           <TooltipContent className="max-w-[300px]">
-                            <p className="font-bold mb-1">{citation.sourceUrl}</p>
-                            <p className="text-sm">"{citation.snippetText}"</p>
-                            <p className="text-xs mt-1">
-                              Confidence: {Math.round(citation.confidence * 100)}%
-                            </p>
+                            <p className="text-sm">{field.reason}</p>
                           </TooltipContent>
                         </Tooltip>
+                      )}
+                    </div>
+                  )}
+                </TableCell>
+                <TableCell>
+                  <ConfidenceIndicator confidence={field.confidence} />
+                </TableCell>
+                <TableCell>
+                  <Badge variant={hasEdit ? 'outline' : status.variant}>
+                    {hasEdit ? 'Edited' : status.label}
+                  </Badge>
+                </TableCell>
+                <TableCell className="max-w-[350px]">
+                  {field.citations.length > 0 ? (
+                    <div className="space-y-2">
+                      {field.citations.slice(0, 2).map((citation, idx) => (
+                        <div key={idx} className="text-sm">
+                          <p className="text-muted-foreground italic line-clamp-2">
+                            "{citation.snippetText}"
+                          </p>
+                          <a
+                            href={citation.sourceUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-primary hover:underline inline-flex items-center gap-1 mt-0.5"
+                          >
+                            {new URL(citation.sourceUrl).pathname || '/'}
+                            <ExternalLink className="h-3 w-3" />
+                          </a>
+                        </div>
                       ))}
-                      <span className="text-xs text-muted-foreground">
-                        ({field.citations.length})
-                      </span>
+                      {field.citations.length > 2 && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button className="text-xs text-muted-foreground hover:text-foreground">
+                              +{field.citations.length - 2} more sources
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-[400px]">
+                            <div className="space-y-2">
+                              {field.citations.slice(2).map((citation, idx) => (
+                                <div key={idx}>
+                                  <p className="text-sm italic">"{citation.snippetText}"</p>
+                                  <a
+                                    href={citation.sourceUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-xs text-primary hover:underline"
+                                  >
+                                    {citation.sourceUrl}
+                                  </a>
+                                </div>
+                              ))}
+                            </div>
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
                     </div>
                   ) : (
                     <div className="flex items-center gap-1 text-muted-foreground">
                       <Info className="h-4 w-4" />
-                      <span className="text-xs">None</span>
+                      <span className="text-xs">No citations</span>
                     </div>
                   )}
                 </TableCell>
