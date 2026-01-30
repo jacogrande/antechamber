@@ -6,6 +6,7 @@ import {
   confirmSubmission,
   type ListSubmissionsParams,
   type CreateSubmissionParams,
+  type ConfirmSubmissionParams,
 } from '@/lib/api/submissions'
 import { getStats } from '@/lib/api/stats'
 
@@ -62,8 +63,9 @@ export function useConfirmSubmission() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (id: string) => confirmSubmission(id),
-    onSuccess: (_data, id) => {
+    mutationFn: ({ id, params }: { id: string; params?: ConfirmSubmissionParams }) =>
+      confirmSubmission(id, params),
+    onSuccess: (_data, { id }) => {
       // Invalidate the specific submission detail
       void queryClient.invalidateQueries({ queryKey: submissionKeys.detail(id) })
       // Invalidate submissions list

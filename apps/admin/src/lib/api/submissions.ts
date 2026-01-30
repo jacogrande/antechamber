@@ -46,6 +46,18 @@ export async function getSubmission(id: string): Promise<SubmissionDetailRespons
   return apiGet<SubmissionDetailResponse>(`/submissions/${id}`)
 }
 
-export async function confirmSubmission(id: string): Promise<void> {
-  return apiPost<void>(`/submissions/${id}/confirm`)
+export interface FieldEdit {
+  fieldKey: string
+  value: unknown
+}
+
+export interface ConfirmSubmissionParams {
+  edits?: FieldEdit[]
+}
+
+export async function confirmSubmission(id: string, params?: ConfirmSubmissionParams): Promise<void> {
+  return apiPost<void>(`/submissions/${id}/confirm`, {
+    confirmedBy: 'internal',
+    edits: params?.edits,
+  })
 }
