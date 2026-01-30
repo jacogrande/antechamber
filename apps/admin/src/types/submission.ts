@@ -66,6 +66,8 @@ export interface ExtractedFieldValue {
   fieldType?: 'string' | 'number' | 'boolean' | 'enum' | 'string[]'
   value: unknown
   status: ExtractedFieldStatus
+  confidence: number
+  reason?: string
   citations: Citation[]
 }
 
