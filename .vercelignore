@@ -1,0 +1,29 @@
+# Dependencies
+node_modules
+
+# Build outputs (except what we need)
+dist
+
+# Development files
+.env.local
+.env.development
+.env*.local
+
+# Test files
+tests
+**/*.test.ts
+**/*.spec.ts
+coverage
+
+# Documentation
+docs
+*.md
+!README.md
+
+# IDE
+.idea
+.vscode
+
+# OS
+.DS_Store
+Thumbs.db

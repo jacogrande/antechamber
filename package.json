@@ -2,6 +2,7 @@
   "name": "onboarding",
   "scripts": {
     "dev": "bun run --hot src/index.ts",
+    "build:all": "cd apps/admin && bun install && bun run build",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
