@@ -1,23 +1,18 @@
-import {
-  Box,
-  Card,
-  CardBody,
-  CardHeader,
-  Heading,
-  Table,
-  Thead,
-  Tbody,
-  Tr,
-  Th,
-  Td,
-  Text,
-  Skeleton,
-} from '@chakra-ui/react'
 import { useNavigate } from 'react-router-dom'
-import { HiOutlineInbox } from 'react-icons/hi'
+import { Inbox } from 'lucide-react'
 import type { Submission } from '@/types/submission'
 import { SubmissionStatusBadge } from './SubmissionStatusBadge'
 import { EmptyState } from '@/components/common/EmptyState'
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import { Skeleton } from '@/components/ui/skeleton'
 
 interface RecentSubmissionsProps {
   submissions: Submission[]
@@ -56,24 +51,24 @@ function truncateUrl(url: string, maxLength = 40): string {
 function LoadingSkeleton() {
   return (
     <Table>
-      <Thead>
-        <Tr>
-          <Th>Website</Th>
-          <Th>Schema</Th>
-          <Th>Status</Th>
-          <Th>Created</Th>
-        </Tr>
-      </Thead>
-      <Tbody>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Website</TableHead>
+          <TableHead>Schema</TableHead>
+          <TableHead>Status</TableHead>
+          <TableHead>Created</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
         {[1, 2, 3, 4, 5].map((i) => (
-          <Tr key={i}>
-            <Td><Skeleton h={4} w="120px" /></Td>
-            <Td><Skeleton h={4} w="100px" /></Td>
-            <Td><Skeleton h={5} w="80px" /></Td>
-            <Td><Skeleton h={4} w="60px" /></Td>
-          </Tr>
+          <TableRow key={i}>
+            <TableCell><Skeleton className="h-4 w-[120px]" /></TableCell>
+            <TableCell><Skeleton className="h-4 w-[100px]" /></TableCell>
+            <TableCell><Skeleton className="h-5 w-[80px]" /></TableCell>
+            <TableCell><Skeleton className="h-4 w-[60px]" /></TableCell>
+          </TableRow>
         ))}
-      </Tbody>
+      </TableBody>
     </Table>
   )
 }
@@ -89,69 +84,65 @@ export function RecentSubmissions({
   }
 
   return (
-    <Card variant="outline">
-      <CardHeader pb={2}>
-        <Heading size="sm">Recent Submissions</Heading>
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base">Recent Submissions</CardTitle>
       </CardHeader>
-      <CardBody pt={0}>
+      <CardContent className="pt-0">
         {isLoading ? (
           <LoadingSkeleton />
         ) : submissions.length === 0 ? (
           <EmptyState
-            icon={HiOutlineInbox}
+            icon={Inbox}
             title="No submissions yet"
             description="Submissions will appear here once you start processing website data."
           />
         ) : (
-          <Box overflowX="auto">
-            <Table size="sm">
-              <Thead>
-                <Tr>
-                  <Th>Website</Th>
-                  <Th>Schema</Th>
-                  <Th>Status</Th>
-                  <Th>Created</Th>
-                </Tr>
-              </Thead>
-              <Tbody>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Website</TableHead>
+                  <TableHead>Schema</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Created</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {submissions.map((submission) => (
-                  <Tr
+                  <TableRow
                     key={submission.id}
                     onClick={() => handleRowClick(submission.id)}
-                    cursor="pointer"
-                    _hover={{ bg: 'bg.subtle' }}
-                    transition="background 0.15s"
+                    className="cursor-pointer transition-colors hover:bg-muted/50"
                   >
-                    <Td>
-                      <Text
-                        fontFamily="mono"
-                        fontSize="sm"
-                        color="text.default"
+                    <TableCell>
+                      <span
+                        className="font-mono text-sm text-foreground"
                         title={submission.websiteUrl}
                       >
                         {truncateUrl(submission.websiteUrl)}
-                      </Text>
-                    </Td>
-                    <Td>
-                      <Text color="text.muted" fontSize="sm">
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-sm text-muted-foreground">
                         {submission.schemaName ?? 'Unknown'}
-                      </Text>
-                    </Td>
-                    <Td>
+                      </span>
+                    </TableCell>
+                    <TableCell>
                       <SubmissionStatusBadge status={submission.status} />
-                    </Td>
-                    <Td>
-                      <Text color="text.subtle" fontSize="sm">
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-sm text-muted-foreground">
                         {formatRelativeTime(submission.createdAt)}
-                      </Text>
-                    </Td>
-                  </Tr>
+                      </span>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </Tbody>
+              </TableBody>
             </Table>
-          </Box>
+          </div>
         )}
-      </CardBody>
+      </CardContent>
     </Card>
   )
 }

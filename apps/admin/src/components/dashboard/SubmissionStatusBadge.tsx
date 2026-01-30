@@ -1,50 +1,58 @@
-import { Badge, HStack, Box } from '@chakra-ui/react'
+import { Badge } from '@/components/ui/badge'
 import type { SubmissionStatus } from '@/types/submission'
+import { cn } from '@/lib/utils'
 
 interface SubmissionStatusBadgeProps {
   status: SubmissionStatus
+  size?: 'sm' | 'md'
 }
 
 const statusConfig: Record<
   SubmissionStatus,
-  { label: string; variant: string; dotColor: string }
+  { label: string; variant: 'default' | 'secondary' | 'success' | 'warning' | 'destructive' | 'info'; dotColor: string }
 > = {
   pending: {
     label: 'Pending',
-    variant: 'subtle',
-    dotColor: 'text.subtle',
+    variant: 'secondary',
+    dotColor: 'bg-muted-foreground',
   },
   draft: {
     label: 'Draft',
     variant: 'warning',
-    dotColor: 'status.warning',
+    dotColor: 'bg-warning',
   },
   confirmed: {
     label: 'Confirmed',
     variant: 'success',
-    dotColor: 'status.success',
+    dotColor: 'bg-success',
   },
   failed: {
     label: 'Failed',
-    variant: 'error',
-    dotColor: 'status.error',
+    variant: 'destructive',
+    dotColor: 'bg-destructive',
   },
 }
 
-export function SubmissionStatusBadge({ status }: SubmissionStatusBadgeProps) {
+export function SubmissionStatusBadge({ status, size = 'md' }: SubmissionStatusBadgeProps) {
   const config = statusConfig[status]
+  const isSmall = size === 'sm'
 
   return (
-    <Badge variant={config.variant} px={2} py={0.5}>
-      <HStack spacing={1.5}>
-        <Box
-          w={2}
-          h={2}
-          borderRadius="full"
-          bg={config.dotColor}
-        />
-        <span>{config.label}</span>
-      </HStack>
+    <Badge
+      variant={config.variant}
+      className={cn(
+        'inline-flex items-center gap-1.5',
+        isSmall ? 'px-1.5 py-0 text-xs' : 'px-2 py-0.5 text-sm'
+      )}
+    >
+      <span
+        className={cn(
+          'rounded-full',
+          config.dotColor,
+          isSmall ? 'h-1.5 w-1.5' : 'h-2 w-2'
+        )}
+      />
+      <span>{config.label}</span>
     </Badge>
   )
 }

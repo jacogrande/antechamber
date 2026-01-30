@@ -1,15 +1,7 @@
-import {
-  Card,
-  CardBody,
-  Stat,
-  StatLabel,
-  StatNumber,
-  StatHelpText,
-  HStack,
-  Box,
-  Skeleton,
-} from '@chakra-ui/react'
 import type { ReactNode } from 'react'
+import { Card, CardContent } from '@/components/ui/card'
+import { Skeleton } from '@/components/ui/skeleton'
+import { cn } from '@/lib/utils'
 
 interface StatCardProps {
   icon: ReactNode
@@ -18,6 +10,7 @@ interface StatCardProps {
   helpText?: string
   colorScheme?: 'brand' | 'success' | 'warning' | 'error'
   isLoading?: boolean
+  size?: 'sm' | 'md'
 }
 
 export function StatCard({
@@ -25,63 +18,60 @@ export function StatCard({
   label,
   value,
   helpText,
-  colorScheme = 'brand',
   isLoading = false,
+  size = 'md',
 }: StatCardProps) {
-  const iconColor = {
-    brand: 'interactive.default',
-    success: 'status.success',
-    warning: 'status.warning',
-    error: 'status.error',
-  }[colorScheme]
-
-  const iconBg = {
-    brand: 'interactive.muted',
-    success: 'status.success.bg',
-    warning: 'status.warning.bg',
-    error: 'status.error.bg',
-  }[colorScheme]
+  const isSmall = size === 'sm'
 
   if (isLoading) {
     return (
-      <Card variant="outline">
-        <CardBody>
-          <HStack spacing={4} align="flex-start">
-            <Skeleton boxSize={10} borderRadius="lg" />
-            <Box flex={1}>
-              <Skeleton h={4} w="60%" mb={2} />
-              <Skeleton h={8} w="40%" mb={2} />
-              <Skeleton h={3} w="80%" />
-            </Box>
-          </HStack>
-        </CardBody>
+      <Card className="h-full">
+        <CardContent className={cn('pt-6', isSmall ? 'p-4' : 'p-5')}>
+          <div className={cn('flex items-start', isSmall ? 'gap-3' : 'gap-4')}>
+            <Skeleton className={cn('rounded-xl', isSmall ? 'h-10 w-10' : 'h-12 w-12')} />
+            <div className="flex-1">
+              <Skeleton className="mb-3 h-3 w-1/2 rounded-lg" />
+              <Skeleton className={cn('mb-2 w-2/5 rounded-lg', isSmall ? 'h-6' : 'h-8')} />
+              {!isSmall && <Skeleton className="h-3 w-3/4 rounded-lg" />}
+            </div>
+          </div>
+        </CardContent>
       </Card>
     )
   }
 
   return (
-    <Card variant="outline">
-      <CardBody>
-        <HStack spacing={4} align="flex-start">
-          <Box
-            p={2}
-            borderRadius="lg"
-            bg={iconBg}
-            color={iconColor}
+    <Card className="h-full">
+      <CardContent className={cn('pt-6', isSmall ? 'p-4' : 'p-5')}>
+        <div className={cn('flex items-start', isSmall ? 'gap-3' : 'gap-4')}>
+          <div
+            className={cn(
+              'rounded-lg bg-muted',
+              isSmall ? 'p-2' : 'p-3'
+            )}
           >
             {icon}
-          </Box>
-          <Stat>
-            <StatLabel color="text.muted">{label}</StatLabel>
-            <StatNumber fontSize="2xl">{value}</StatNumber>
+          </div>
+          <div className="flex flex-col">
+            <span className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              {label}
+            </span>
+            <span
+              className={cn(
+                'font-bold tracking-tight leading-tight',
+                isSmall ? 'text-2xl' : 'text-3xl'
+              )}
+            >
+              {value}
+            </span>
             {helpText && (
-              <StatHelpText mb={0} color="text.subtle">
+              <span className="mt-1 text-xs text-muted-foreground">
                 {helpText}
-              </StatHelpText>
+              </span>
             )}
-          </Stat>
-        </HStack>
-      </CardBody>
+          </div>
+        </div>
+      </CardContent>
     </Card>
   )
 }
