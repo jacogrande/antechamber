@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
-import { Center, Spinner } from '@chakra-ui/react'
+import { Loader2 } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 
 interface AuthGuardProps {
@@ -13,9 +13,9 @@ export function AuthGuard({ children }: AuthGuardProps) {
 
   if (loading) {
     return (
-      <Center h="100vh">
-        <Spinner size="xl" color="brand.500" thickness="3px" />
-      </Center>
+      <div className="h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
     )
   }
 
