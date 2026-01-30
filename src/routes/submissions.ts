@@ -146,6 +146,7 @@ export function createSubmissionsRoute(depsOverride?: SubmissionsRouteDeps) {
 
     // Only launch workflow if we have all required deps
     // In production, these should be wired via depsOverride at app startup
+    console.log('[workflow] Checking deps:', { hasStorage: !!storage, hasLlmClient: !!llmClient });
     if (storage && llmClient) {
       const deps: WorkflowDeps = {
         db: depsOverride?.db ?? getDb(),
@@ -154,6 +155,7 @@ export function createSubmissionsRoute(depsOverride?: SubmissionsRouteDeps) {
         fetchFn: depsOverride?.fetchFn,
       };
       const runner = new WorkflowRunner(deps);
+      console.log(`[workflow] Starting workflow for submission ${submission.id}`);
       runner
         .execute(generateOnboardingDraft, submission.id, workflowRun.id)
         .catch(async (err) => {
@@ -264,6 +266,26 @@ export function createSubmissionsRoute(depsOverride?: SubmissionsRouteDeps) {
       throw new NotFoundError('Submission not found');
     }
 
+    // Load schema for name
+    const [schema] = await db
+      .select({ name: schemas.name })
+      .from(schemas)
+      .where(eq(schemas.id, submission.schemaId));
+
+    // Load schema version for field definitions (to get labels)
+    const [schemaVersion] = await db
+      .select({ fields: schemaVersions.fields })
+      .from(schemaVersions)
+      .where(
+        and(
+          eq(schemaVersions.schemaId, submission.schemaId),
+          eq(schemaVersions.version, submission.schemaVersion),
+        ),
+      );
+
+    const fieldDefs = schemaVersion ? parseFieldDefinitions(schemaVersion.fields) : [];
+    const fieldDefMap = new Map(fieldDefs.map((f) => [f.key, f]));
+
     // Load latest workflow run
     const [latestRun] = await db
       .select()
@@ -272,43 +294,84 @@ export function createSubmissionsRoute(depsOverride?: SubmissionsRouteDeps) {
       .orderBy(desc(workflowRuns.createdAt))
       .limit(1);
 
-    // Strip step outputs from response (internal/idempotency only)
-    const sanitizedSteps = latestRun
-      ? parseStepRecords(latestRun.steps).map((s) => ({
-          name: s.name,
-          status: s.status,
-          startedAt: s.startedAt,
-          completedAt: s.completedAt,
-          error: s.error,
-          attempts: s.attempts,
-        }))
-      : [];
+    // Parse step records to get workflow steps and crawl output
+    const stepRecords = latestRun ? parseStepRecords(latestRun.steps) : [];
+    const workflowSteps = stepRecords.map((s) => ({
+      name: s.name,
+      status: s.status,
+      startedAt: s.startedAt,
+      completedAt: s.completedAt,
+      error: s.error,
+    }));
+
+    // Extract artifacts from crawl step output
+    const crawlStep = stepRecords.find((s) => s.name === 'crawl');
+    const crawlOutput = crawlStep?.output as {
+      extractedContent?: Array<{
+        url: string;
+        title: string;
+        fetchedAt: string;
+      }>;
+    } | undefined;
+
+    const artifacts = (crawlOutput?.extractedContent ?? []).map((page) => ({
+      url: page.url,
+      pageType: 'crawled', // We don't track page type currently
+      fetchedAt: page.fetchedAt,
+      statusCode: 200, // Successfully fetched pages are 200
+    }));
+
+    // Transform fields to frontend format
+    console.log(`[submission-detail] Raw fields from DB:`, JSON.stringify(submission.fields));
+    const rawFields = parseExtractedFields(submission.fields);
+    console.log(`[submission-detail] Parsed fields:`, rawFields.length);
+    const extractedFields = rawFields.map((f) => {
+      const def = fieldDefMap.get(f.key);
+      const confidence = f.confidence ?? 0;
+      const citations = f.citations ?? [];
+
+      // Map backend status to frontend status
+      let frontendStatus: 'found' | 'not_found' | 'unknown' = 'unknown';
+      if (f.value !== null && f.value !== undefined && confidence > 0) {
+        frontendStatus = 'found';
+      } else if (f.status === 'unknown' || confidence === 0) {
+        frontendStatus = f.value === null ? 'not_found' : 'unknown';
+      }
+
+      return {
+        fieldKey: f.key,
+        fieldLabel: def?.label ?? f.key,
+        fieldType: def?.type,
+        value: f.value,
+        status: frontendStatus,
+        confidence,
+        reason: f.reason,
+        citations: citations.map((c) => ({
+          sourceUrl: c.url,
+          snippetText: c.snippet,
+          confidence: confidence,
+        })),
+      };
+    });
 
     return c.json({
       submission: {
         id: submission.id,
-        tenantId: submission.tenantId,
         schemaId: submission.schemaId,
+        schemaName: schema?.name ?? null,
         schemaVersion: submission.schemaVersion,
         websiteUrl: submission.websiteUrl,
         status: submission.status,
-        fields: submission.fields,
+        workflowRunId: latestRun?.id ?? null,
+        workflowSteps,
+        extractedFields,
+        artifacts,
         customerMeta: submission.customerMeta,
         confirmedBy: submission.confirmedBy,
-        confirmedAt: submission.confirmedAt,
-        createdAt: submission.createdAt,
-        updatedAt: submission.updatedAt,
+        confirmedAt: submission.confirmedAt?.toISOString(),
+        createdAt: submission.createdAt.toISOString(),
+        updatedAt: submission.updatedAt.toISOString(),
       },
-      workflow: latestRun
-        ? {
-            id: latestRun.id,
-            status: latestRun.status,
-            steps: sanitizedSteps,
-            error: latestRun.error,
-            startedAt: latestRun.startedAt,
-            completedAt: latestRun.completedAt,
-          }
-        : null,
     });
   });
 
