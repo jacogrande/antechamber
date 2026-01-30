@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { eq, and, max, desc, count } from 'drizzle-orm';
 import { z } from 'zod';
-import type { AppEnv } from '../index';
+import type { AppEnv } from '../types/app';
 import { getDb } from '../db/client';
 import { submissions, schemas, schemaVersions, workflowRuns, webhooks } from '../db/schema';
 import { createSubmissionRequestSchema, confirmSubmissionRequestSchema } from '../types/api';

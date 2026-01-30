@@ -12,18 +12,13 @@ import webhooksRoute from './routes/webhooks';
 import cronRoute from './routes/cron';
 import statsRoute from './routes/stats';
 import { checkDbConnection } from './db/client';
+import type { AppEnv } from './types/app';
 
 // Check database connection on startup
 void checkDbConnection();
 
-export type AppEnv = {
-  Variables: {
-    user: { id: string; email: string };
-    tenantId: string;
-    tenantRole: 'admin' | 'editor' | 'viewer';
-    jwtPayload: Record<string, unknown>;
-  };
-};
+// Re-export for backwards compatibility
+export type { AppEnv } from './types/app';
 
 const app = new Hono<AppEnv>();
 

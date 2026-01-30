@@ -1,5 +1,5 @@
 import { createMiddleware } from 'hono/factory';
-import type { AppEnv } from '../index';
+import type { AppEnv } from '../types/app';
 import { ForbiddenError } from '../lib/errors';
 
 type TenantRole = 'admin' | 'editor' | 'viewer';

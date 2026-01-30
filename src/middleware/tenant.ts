@@ -1,6 +1,6 @@
 import { createMiddleware } from 'hono/factory';
 import { and, eq } from 'drizzle-orm';
-import type { AppEnv } from '../index';
+import type { AppEnv } from '../types/app';
 import { getDb } from '../db/client';
 import { tenantMemberships } from '../db/schema';
 import { ValidationError, ForbiddenError } from '../lib/errors';

@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { eq, and, max, desc, count } from 'drizzle-orm';
-import type { AppEnv } from '../index';
+import type { AppEnv } from '../types/app';
 import { getDb } from '../db/client';
 import type { Database } from '../db/client';
 import { schemas, schemaVersions, submissions } from '../db/schema';

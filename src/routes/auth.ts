@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { createClient } from '@supabase/supabase-js';
 import { eq } from 'drizzle-orm';
-import type { AppEnv } from '../index';
+import type { AppEnv } from '../types/app';
 import { getEnv } from '../env';
 import { getDb } from '../db/client';
 import { users, tenantMemberships, tenants } from '../db/schema';
