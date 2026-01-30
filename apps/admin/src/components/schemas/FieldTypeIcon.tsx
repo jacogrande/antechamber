@@ -1,39 +1,57 @@
-import { Icon } from '@chakra-ui/react'
-import {
-  HiOutlineMenuAlt2,
-  HiOutlineHashtag,
-  HiOutlineCheckCircle,
-  HiOutlineCollection,
-  HiOutlineViewList,
-} from 'react-icons/hi'
 import type { FieldType } from '@/types/schema'
+import { fieldTypeConfig, getFieldTypeLabel } from '@/lib/field-types'
+import { cn } from '@/lib/utils'
 
-const iconMap: Record<FieldType, React.ElementType> = {
-  string: HiOutlineMenuAlt2,
-  number: HiOutlineHashtag,
-  boolean: HiOutlineCheckCircle,
-  enum: HiOutlineCollection,
-  'string[]': HiOutlineViewList,
-}
-
-interface FieldTypeIconProps {
+export interface FieldTypeIconProps {
   type: FieldType
-  boxSize?: number | string
+  size?: number
   color?: string
+  withBackground?: boolean
+  backgroundSize?: 'sm' | 'md'
+  className?: string
 }
 
-export function FieldTypeIcon({ type, boxSize = 5, color }: FieldTypeIconProps) {
-  const IconComponent = iconMap[type]
-  return <Icon as={IconComponent} boxSize={boxSize} color={color} />
-}
+export function FieldTypeIcon({
+  type,
+  size = 20,
+  color,
+  withBackground = false,
+  backgroundSize = 'sm',
+  className,
+}: FieldTypeIconProps) {
+  const config = fieldTypeConfig[type]
+  const Icon = config.icon
 
-export function getFieldTypeLabel(type: FieldType): string {
-  const labels: Record<FieldType, string> = {
-    string: 'Text',
-    number: 'Number',
-    boolean: 'Yes/No',
-    enum: 'Choice',
-    'string[]': 'List',
+  if (withBackground) {
+    const padding = backgroundSize === 'sm' ? 'p-2' : 'p-3'
+    return (
+      <div
+        className={cn(
+          'flex items-center justify-center rounded-lg',
+          padding,
+          config.colors.bg,
+          config.colors.bgDark
+        )}
+      >
+        <Icon
+          size={size}
+          className={cn(config.colors.text, config.colors.textDark)}
+        />
+      </div>
+    )
   }
-  return labels[type]
+
+  return (
+    <Icon
+      size={size}
+      className={cn(
+        color ? undefined : config.colors.text,
+        color ? undefined : config.colors.textDark,
+        className
+      )}
+      style={color ? { color } : undefined}
+    />
+  )
 }
+
+export { getFieldTypeLabel }

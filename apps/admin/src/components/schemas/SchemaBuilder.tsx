@@ -1,31 +1,18 @@
-import { useEffect, useCallback } from 'react'
-import {
-  Box,
-  Flex,
-  Input,
-  Button,
-  HStack,
-  FormControl,
-  FormLabel,
-  Divider,
-  useBreakpointValue,
-  Drawer,
-  DrawerBody,
-  DrawerHeader,
-  DrawerOverlay,
-  DrawerContent,
-  DrawerCloseButton,
-  useDisclosure,
-  IconButton,
-} from '@chakra-ui/react'
+import { useState, useEffect, useCallback } from 'react'
 import { useBlocker } from 'react-router-dom'
-import { HiOutlineCog } from 'react-icons/hi'
-import { FieldTypePalette } from './FieldTypePalette'
-import { FieldCanvas } from './FieldCanvas'
-import { FieldPropertiesPanel } from './FieldPropertiesPanel'
-import { SchemaJsonPreview } from './SchemaJsonPreview'
+import { Undo2, Redo2 } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
+import { SchemaFieldList } from './SchemaFieldList'
+import { SchemaInspector } from './SchemaInspector'
 import { ConfirmDialog } from '@/components/common'
 import { useSchemaBuilderContext } from './SchemaBuilderProvider'
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
 
 interface SchemaBuilderProps {
   onSave: () => void
@@ -40,17 +27,38 @@ export function SchemaBuilder({
   isSaving,
   saveLabel = 'Save',
 }: SchemaBuilderProps) {
-  const { state, setName, selectedField } = useSchemaBuilderContext()
-  const { isOpen, onOpen, onClose } = useDisclosure()
   const {
-    isOpen: isConfirmOpen,
-    onOpen: onConfirmOpen,
-    onClose: onConfirmClose,
-  } = useDisclosure()
+    state,
+    setName,
+    canUndo,
+    canRedo,
+    undo,
+    redo,
+    deleteField,
+    duplicateField,
+    selectField,
+  } = useSchemaBuilderContext()
 
-  const isMobile = useBreakpointValue({ base: true, lg: false })
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false)
 
   const canSave = state.name.trim() && state.fields.length > 0
+
+  // Keyboard shortcuts
+  useKeyboardShortcuts({
+    onUndo: undo,
+    onRedo: redo,
+    onDelete: state.selectedIndex !== null ? () => deleteField(state.selectedIndex!) : undefined,
+    onDuplicate: state.selectedIndex !== null ? () => duplicateField(state.selectedIndex!) : undefined,
+    onMoveUp:
+      state.selectedIndex !== null && state.selectedIndex > 0
+        ? () => selectField(state.selectedIndex! - 1)
+        : undefined,
+    onMoveDown:
+      state.selectedIndex !== null && state.selectedIndex < state.fields.length - 1
+        ? () => selectField(state.selectedIndex! + 1)
+        : undefined,
+    enabled: true,
+  })
 
   // Block navigation when there are unsaved changes
   const blocker = useBlocker(
@@ -73,146 +81,117 @@ export function SchemaBuilder({
 
   const handleCancel = useCallback(() => {
     if (state.isDirty) {
-      onConfirmOpen()
+      setIsConfirmOpen(true)
     } else {
       onCancel()
     }
-  }, [state.isDirty, onCancel, onConfirmOpen])
+  }, [state.isDirty, onCancel])
 
   const handleConfirmDiscard = useCallback(() => {
-    onConfirmClose()
+    setIsConfirmOpen(false)
     onCancel()
-  }, [onCancel, onConfirmClose])
+  }, [onCancel])
 
   // Handle navigation blocker
   useEffect(() => {
     if (blocker.state === 'blocked') {
-      onConfirmOpen()
+      setIsConfirmOpen(true)
     }
-  }, [blocker.state, onConfirmOpen])
+  }, [blocker.state])
 
   const handleConfirmNavigation = useCallback(() => {
-    onConfirmClose()
+    setIsConfirmOpen(false)
     if (blocker.state === 'blocked') {
       blocker.proceed()
     }
-  }, [blocker, onConfirmClose])
+  }, [blocker])
 
   const handleCancelNavigation = useCallback(() => {
-    onConfirmClose()
+    setIsConfirmOpen(false)
     if (blocker.state === 'blocked') {
       blocker.reset()
     }
-  }, [blocker, onConfirmClose])
+  }, [blocker])
 
   return (
-    <Flex direction="column" h="full">
-      {/* Header */}
-      <Box borderBottomWidth="1px" borderColor="border.default" p={4}>
-        <Flex
-          direction={{ base: 'column', md: 'row' }}
-          gap={4}
-          align={{ md: 'flex-end' }}
-        >
-          <FormControl flex={1}>
-            <FormLabel fontSize="sm">Schema Name</FormLabel>
-            <Input
-              value={state.name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g., Company Onboarding"
-              size="md"
-            />
-          </FormControl>
-          <HStack spacing={3}>
-            <Button variant="ghost" onClick={handleCancel}>
-              Cancel
-            </Button>
-            <Button
-              variant="primary"
-              onClick={onSave}
-              isLoading={isSaving}
-              isDisabled={!canSave}
-            >
-              {saveLabel}
-            </Button>
-          </HStack>
-        </Flex>
-      </Box>
-
-      {/* Three-panel layout */}
-      <Flex flex={1} overflow="hidden">
-        {/* Left panel - Field palette */}
-        <Box
-          w="200px"
-          borderRightWidth="1px"
-          borderColor="border.default"
-          p={4}
-          display={{ base: 'none', md: 'block' }}
-          overflowY="auto"
-        >
-          <FieldTypePalette />
-        </Box>
-
-        {/* Center panel - Field canvas */}
-        <Box flex={1} p={4} overflowY="auto">
-          <FieldCanvas />
-
-          {/* Mobile: Add field buttons inline */}
-          <Box display={{ base: 'block', md: 'none' }} mt={4}>
-            <Divider mb={4} />
-            <FieldTypePalette />
-          </Box>
-
-          <Divider my={4} />
-          <SchemaJsonPreview />
-        </Box>
-
-        {/* Right panel - Field properties (desktop) */}
-        {!isMobile && (
-          <Box
-            w="320px"
-            borderLeftWidth="1px"
-            borderColor="border.default"
-            bg="bg.subtle"
-            overflowY="auto"
-          >
-            <FieldPropertiesPanel />
-          </Box>
-        )}
-
-        {/* Mobile: Properties drawer trigger */}
-        {isMobile && selectedField && (
-          <IconButton
-            aria-label="Edit field properties"
-            icon={<HiOutlineCog />}
-            position="fixed"
-            bottom={4}
-            right={4}
-            size="lg"
-            borderRadius="full"
-            variant="primary"
-            shadow="lg"
-            onClick={onOpen}
+    <div className="flex flex-col h-full bg-card">
+      {/* Minimal header */}
+      <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-card">
+        <div className="flex items-center gap-3">
+          <Input
+            value={state.name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Untitled Schema"
+            className="border-none shadow-none font-semibold text-base w-auto min-w-[200px] focus-visible:ring-0 bg-transparent"
           />
-        )}
+          {state.isDirty && (
+            <span className="text-xs text-muted-foreground">Edited</span>
+          )}
+        </div>
 
-        {/* Mobile: Properties drawer */}
-        <Drawer isOpen={isOpen} placement="bottom" onClose={onClose} size="md">
-          <DrawerOverlay />
-          <DrawerContent borderTopRadius="xl" maxH="80vh">
-            <DrawerCloseButton />
-            <DrawerHeader>Field Properties</DrawerHeader>
-            <DrawerBody>
-              <FieldPropertiesPanel />
-            </DrawerBody>
-          </DrawerContent>
-        </Drawer>
-      </Flex>
+        <div className="flex items-center gap-2">
+          <div className="flex">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  disabled={!canUndo}
+                  onClick={undo}
+                  aria-label="Undo"
+                >
+                  <Undo2 className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Undo (Cmd+Z)</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  disabled={!canRedo}
+                  onClick={redo}
+                  aria-label="Redo"
+                >
+                  <Redo2 className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Redo (Cmd+Shift+Z)</TooltipContent>
+            </Tooltip>
+          </div>
+
+          <Button variant="ghost" size="sm" onClick={handleCancel}>
+            Cancel
+          </Button>
+          <Button
+            size="sm"
+            onClick={onSave}
+            disabled={!canSave || isSaving}
+            isLoading={isSaving}
+          >
+            {saveLabel}
+          </Button>
+        </div>
+      </div>
+
+      {/* Two-panel layout */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Left: Field list */}
+        <div className="w-[280px] border-r border-border overflow-y-auto bg-muted/30">
+          <SchemaFieldList />
+        </div>
+
+        {/* Right: Inspector */}
+        <div className="flex-1 overflow-y-auto bg-card">
+          <SchemaInspector />
+        </div>
+      </div>
 
       {/* Unsaved changes confirmation */}
       <ConfirmDialog
         isOpen={isConfirmOpen}
-        onClose={blocker.state === 'blocked' ? handleCancelNavigation : onConfirmClose}
+        onClose={blocker.state === 'blocked' ? handleCancelNavigation : () => setIsConfirmOpen(false)}
         onConfirm={blocker.state === 'blocked' ? handleConfirmNavigation : handleConfirmDiscard}
         title="Discard changes?"
         message="You have unsaved changes. Are you sure you want to leave? Your changes will be lost."
@@ -220,6 +199,6 @@ export function SchemaBuilder({
         cancelLabel="Keep editing"
         isDestructive
       />
-    </Flex>
+    </div>
   )
 }

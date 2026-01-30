@@ -5,6 +5,8 @@ import type { FieldDefinition, FieldType } from '@/types/schema'
 interface SchemaBuilderContextValue {
   state: BuilderState
   selectedField: FieldDefinition | null
+  canUndo: boolean
+  canRedo: boolean
   setName: (name: string) => void
   addField: (fieldType: FieldType) => void
   updateField: (index: number, field: Partial<FieldDefinition>) => void
@@ -15,6 +17,8 @@ interface SchemaBuilderContextValue {
   loadSchema: (name: string, fields: FieldDefinition[]) => void
   markClean: () => void
   reset: () => void
+  undo: () => void
+  redo: () => void
 }
 
 const SchemaBuilderContext = createContext<SchemaBuilderContextValue | null>(null)

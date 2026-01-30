@@ -1,5 +1,11 @@
-import { Select, HStack } from '@chakra-ui/react'
 import { FieldTypeIcon, getFieldTypeLabel } from './FieldTypeIcon'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import type { FieldType } from '@/types/schema'
 
 const fieldTypes: FieldType[] = ['string', 'number', 'boolean', 'enum', 'string[]']
@@ -12,21 +18,24 @@ interface FieldTypeSelectProps {
 
 export function FieldTypeSelect({ value, onChange, isDisabled }: FieldTypeSelectProps) {
   return (
-    <HStack spacing={2}>
-      <FieldTypeIcon type={value} color="text.muted" />
+    <div className="flex items-center gap-2">
+      <FieldTypeIcon type={value} size={16} />
       <Select
         value={value}
-        onChange={(e) => onChange(e.target.value as FieldType)}
-        isDisabled={isDisabled}
-        size="sm"
-        flex={1}
+        onValueChange={(v) => onChange(v as FieldType)}
+        disabled={isDisabled}
       >
-        {fieldTypes.map((type) => (
-          <option key={type} value={type}>
-            {getFieldTypeLabel(type)}
-          </option>
-        ))}
+        <SelectTrigger className="flex-1">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {fieldTypes.map((type) => (
+            <SelectItem key={type} value={type}>
+              {getFieldTypeLabel(type)}
+            </SelectItem>
+          ))}
+        </SelectContent>
       </Select>
-    </HStack>
+    </div>
   )
 }

@@ -1,13 +1,7 @@
-import {
-  Card,
-  CardBody,
-  Heading,
-  Text,
-  HStack,
-  VStack,
-  Badge,
-} from '@chakra-ui/react'
 import { useNavigate } from 'react-router-dom'
+import { FileText } from 'lucide-react'
+import { Card, CardContent } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
 import type { Schema } from '@/types/schema'
 
 interface SchemaCardProps {
@@ -30,37 +24,38 @@ export function SchemaCard({ schema, fieldCount, latestVersion }: SchemaCardProp
 
   return (
     <Card
-      variant="outline"
-      cursor="pointer"
-      transition="all 0.2s"
-      _hover={{
-        borderColor: 'brand.500',
-        shadow: 'sm',
-      }}
+      className="cursor-pointer transition-colors hover:bg-muted/50"
       onClick={() => navigate(`/schemas/${schema.id}`)}
     >
-      <CardBody>
-        <VStack align="stretch" spacing={3}>
-          <Heading size="sm" noOfLines={1}>
-            {schema.name}
-          </Heading>
-          <HStack spacing={2} flexWrap="wrap">
+      <CardContent className="p-5">
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center gap-3">
+            <div className="rounded-lg bg-primary/10 p-2.5">
+              <FileText className="h-5 w-5 text-primary" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="font-semibold tracking-tight truncate">
+                {schema.name}
+              </h3>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
             {latestVersion !== undefined && (
-              <Badge colorScheme="blue" variant="subtle">
-                v{latestVersion}
-              </Badge>
+              <Badge variant="secondary">v{latestVersion}</Badge>
             )}
             {fieldCount !== undefined && (
-              <Badge colorScheme="gray" variant="subtle">
+              <Badge variant="outline">
                 {fieldCount} {fieldCount === 1 ? 'field' : 'fields'}
               </Badge>
             )}
-          </HStack>
-          <Text fontSize="sm" color="text.muted">
+          </div>
+
+          <p className="text-xs text-muted-foreground">
             Updated {formatDate(schema.updatedAt)}
-          </Text>
-        </VStack>
-      </CardBody>
+          </p>
+        </div>
+      </CardContent>
     </Card>
   )
 }

@@ -1,14 +1,7 @@
-import {
-  VStack,
-  FormControl,
-  FormLabel,
-  Input,
-  HStack,
-  NumberInput,
-  NumberInputField,
-  FormErrorMessage,
-} from '@chakra-ui/react'
 import { useState } from 'react'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { cn } from '@/lib/utils'
 
 interface ValidationRules {
   regex?: string
@@ -70,46 +63,54 @@ export function ValidationRulesEditor({
   }
 
   return (
-    <VStack spacing={4} align="stretch">
-      <FormControl isInvalid={!!regexError}>
-        <FormLabel fontSize="sm">Regex Pattern</FormLabel>
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="regex-pattern" className="text-sm">
+          Regex Pattern
+        </Label>
         <Input
-          size="sm"
+          id="regex-pattern"
           placeholder="e.g., ^[A-Z]{2}[0-9]{4}$"
-          fontFamily="mono"
+          className={cn('font-mono', regexError && 'border-destructive')}
           value={value?.regex ?? ''}
           onChange={(e) => handleRegexChange(e.target.value)}
         />
-        {regexError && <FormErrorMessage>{regexError}</FormErrorMessage>}
-      </FormControl>
+        {regexError && (
+          <p className="text-sm text-destructive">{regexError}</p>
+        )}
+      </div>
 
       {showLengthValidation && (
-        <HStack spacing={4}>
-          <FormControl>
-            <FormLabel fontSize="sm">Min Length</FormLabel>
-            <NumberInput
-              size="sm"
+        <div className="flex gap-4">
+          <div className="flex flex-col gap-2 flex-1">
+            <Label htmlFor="min-length" className="text-sm">
+              Min Length
+            </Label>
+            <Input
+              id="min-length"
+              type="number"
               min={0}
+              placeholder="0"
               value={value?.minLen ?? ''}
-              onChange={handleMinLenChange}
-            >
-              <NumberInputField placeholder="0" />
-            </NumberInput>
-          </FormControl>
+              onChange={(e) => handleMinLenChange(e.target.value)}
+            />
+          </div>
 
-          <FormControl>
-            <FormLabel fontSize="sm">Max Length</FormLabel>
-            <NumberInput
-              size="sm"
+          <div className="flex flex-col gap-2 flex-1">
+            <Label htmlFor="max-length" className="text-sm">
+              Max Length
+            </Label>
+            <Input
+              id="max-length"
+              type="number"
               min={0}
+              placeholder="No limit"
               value={value?.maxLen ?? ''}
-              onChange={handleMaxLenChange}
-            >
-              <NumberInputField placeholder="No limit" />
-            </NumberInput>
-          </FormControl>
-        </HStack>
+              onChange={(e) => handleMaxLenChange(e.target.value)}
+            />
+          </div>
+        </div>
       )}
-    </VStack>
+    </div>
   )
 }

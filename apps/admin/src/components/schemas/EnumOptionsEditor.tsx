@@ -1,5 +1,5 @@
-import { FormControl, FormLabel, FormHelperText } from '@chakra-ui/react'
 import { TagInput } from '@/components/common'
+import { Label } from '@/components/ui/label'
 
 interface EnumOptionsEditorProps {
   value: string[]
@@ -13,8 +13,8 @@ export function EnumOptionsEditor({
   isDisabled,
 }: EnumOptionsEditorProps) {
   return (
-    <FormControl>
-      <FormLabel fontSize="sm">Options</FormLabel>
+    <div className="flex flex-col gap-2">
+      <Label className="text-sm">Options</Label>
       <TagInput
         value={value}
         onChange={onChange}
@@ -22,9 +22,9 @@ export function EnumOptionsEditor({
         maxTags={50}
         isDisabled={isDisabled}
       />
-      <FormHelperText>
+      <p className="text-xs text-muted-foreground">
         Press Enter or comma to add. Backspace to remove.
-      </FormHelperText>
-    </FormControl>
+      </p>
+    </div>
   )
 }

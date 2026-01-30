@@ -1,4 +1,3 @@
-import { SimpleGrid } from '@chakra-ui/react'
 import { SchemaCard } from './SchemaCard'
 import type { Schema } from '@/types/schema'
 
@@ -8,10 +7,10 @@ interface SchemaListProps {
 
 export function SchemaList({ schemas }: SchemaListProps) {
   return (
-    <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={4}>
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       {schemas.map((schema) => (
         <SchemaCard key={schema.id} schema={schema} />
       ))}
-    </SimpleGrid>
+    </div>
   )
 }

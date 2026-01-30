@@ -1,4 +1,4 @@
-import { VStack, Button, Text, Box } from '@chakra-ui/react'
+import { Button } from '@/components/ui/button'
 import { FieldTypeIcon, getFieldTypeLabel } from './FieldTypeIcon'
 import { useSchemaBuilderContext } from './SchemaBuilderProvider'
 import type { FieldType } from '@/types/schema'
@@ -9,25 +9,24 @@ export function FieldTypePalette() {
   const { addField } = useSchemaBuilderContext()
 
   return (
-    <Box>
-      <Text fontSize="sm" fontWeight="medium" color="text.muted" mb={3}>
+    <div>
+      <p className="text-sm font-medium text-muted-foreground mb-3">
         Add Field
-      </Text>
-      <VStack spacing={2} align="stretch">
+      </p>
+      <div className="flex flex-col gap-2">
         {fieldTypes.map((type) => (
           <Button
             key={type}
             variant="ghost"
             size="sm"
-            justifyContent="flex-start"
-            leftIcon={<FieldTypeIcon type={type} />}
+            className="justify-start font-normal"
             onClick={() => addField(type)}
-            fontWeight="normal"
           >
+            <FieldTypeIcon type={type} className="mr-2" />
             {getFieldTypeLabel(type)}
           </Button>
         ))}
-      </VStack>
-    </Box>
+      </div>
+    </div>
   )
 }

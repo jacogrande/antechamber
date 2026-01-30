@@ -1,17 +1,12 @@
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import {
-  Flex,
-  Box,
-  Text,
-  IconButton,
-  HStack,
-  Badge,
-} from '@chakra-ui/react'
-import { HiOutlineMenu, HiOutlineTrash, HiOutlineDuplicate } from 'react-icons/hi'
+import { GripVertical, Trash2, Copy } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { FieldTypeIcon, getFieldTypeLabel } from './FieldTypeIcon'
 import { useSchemaBuilderContext } from './SchemaBuilderProvider'
 import type { FieldDefinition } from '@/types/schema'
+import { cn } from '@/lib/utils'
 
 interface FieldRowProps {
   field: FieldDefinition
@@ -37,73 +32,71 @@ export function FieldRow({ field, index, isSelected }: FieldRowProps) {
   }
 
   return (
-    <Flex
+    <div
       ref={setNodeRef}
       style={style}
-      align="center"
-      p={3}
-      bg={isSelected ? 'blue.50' : 'bg.surface'}
-      borderWidth="1px"
-      borderColor={isSelected ? 'brand.500' : 'border.default'}
-      borderRadius="md"
-      cursor="pointer"
-      opacity={isDragging ? 0.5 : 1}
-      _hover={{
-        borderColor: isSelected ? 'brand.500' : 'border.emphasis',
-      }}
-      _dark={{
-        bg: isSelected ? 'blue.900' : 'bg.surface',
-      }}
+      role="listitem"
+      aria-selected={isSelected}
+      tabIndex={0}
+      className={cn(
+        'flex items-center p-3 rounded-md border cursor-pointer transition-colors',
+        isSelected
+          ? 'bg-primary/5 border-primary'
+          : 'bg-card border-border hover:border-muted-foreground/50',
+        isDragging && 'opacity-50'
+      )}
       onClick={() => selectField(index)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          selectField(index)
+        }
+      }}
     >
-      <Box
+      <div
         {...attributes}
         {...listeners}
-        cursor="grab"
-        p={1}
-        mr={2}
-        color="text.muted"
-        _hover={{ color: 'text.default' }}
-        _active={{ cursor: 'grabbing' }}
+        className="cursor-grab p-1 mr-2 text-muted-foreground hover:text-foreground active:cursor-grabbing"
       >
-        <HiOutlineMenu />
-      </Box>
+        <GripVertical className="h-4 w-4" />
+      </div>
 
-      <FieldTypeIcon type={field.type} color="text.muted" />
+      <FieldTypeIcon type={field.type} size={16} />
 
-      <Box flex={1} ml={3} minW={0}>
-        <Text fontWeight="medium" noOfLines={1}>
-          {field.label}
-        </Text>
-        <HStack spacing={2} mt={1}>
-          <Text fontSize="xs" color="text.muted">
+      <div className="flex-1 ml-3 min-w-0">
+        <p className="font-medium truncate">{field.label}</p>
+        <div className="flex items-center gap-2 mt-1">
+          <span className="text-xs text-muted-foreground">
             {getFieldTypeLabel(field.type)}
-          </Text>
+          </span>
           {field.required && (
-            <Badge size="sm" colorScheme="red" variant="subtle">
+            <Badge variant="destructive" className="text-xs py-0 h-5">
               Required
             </Badge>
           )}
-        </HStack>
-      </Box>
+        </div>
+      </div>
 
-      <HStack spacing={1} onClick={(e) => e.stopPropagation()}>
-        <IconButton
-          aria-label="Duplicate field"
-          icon={<HiOutlineDuplicate />}
-          size="sm"
+      <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+        <Button
           variant="ghost"
+          size="icon"
+          className="h-8 w-8"
           onClick={() => duplicateField(index)}
-        />
-        <IconButton
-          aria-label="Delete field"
-          icon={<HiOutlineTrash />}
-          size="sm"
+          aria-label="Duplicate field"
+        >
+          <Copy className="h-4 w-4" />
+        </Button>
+        <Button
           variant="ghost"
-          colorScheme="red"
+          size="icon"
+          className="h-8 w-8 text-destructive hover:text-destructive"
           onClick={() => deleteField(index)}
-        />
-      </HStack>
-    </Flex>
+          aria-label="Delete field"
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </div>
+    </div>
   )
 }

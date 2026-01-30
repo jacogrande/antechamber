@@ -1,12 +1,7 @@
-import {
-  VStack,
-  HStack,
-  Box,
-  Text,
-  Badge,
-  Button,
-} from '@chakra-ui/react'
 import { useNavigate } from 'react-router-dom'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 import type { SchemaVersion } from '@/types/schema'
 
 interface SchemaVersionTimelineProps {
@@ -34,56 +29,52 @@ export function SchemaVersionTimeline({
   const navigate = useNavigate()
 
   return (
-    <VStack spacing={0} align="stretch">
+    <div className="flex flex-col">
       {versions.map((version, index) => {
         const isLatest = index === 0
         const isCurrent = version.version === currentVersion
 
         return (
-          <HStack
+          <div
             key={version.id}
-            spacing={3}
-            p={3}
-            bg={isCurrent ? 'blue.50' : 'transparent'}
-            borderRadius="md"
-            _dark={{
-              bg: isCurrent ? 'blue.900' : 'transparent',
-            }}
+            className={cn(
+              'flex items-center gap-3 p-3 rounded-md',
+              isCurrent && 'bg-primary/5 dark:bg-primary/10'
+            )}
           >
-            <Box
-              w={2}
-              h={2}
-              borderRadius="full"
-              bg={isLatest ? 'brand.500' : 'gray.300'}
-              flexShrink={0}
+            <div
+              className={cn(
+                'w-2 h-2 rounded-full shrink-0',
+                isLatest ? 'bg-primary' : 'bg-muted-foreground/30'
+              )}
             />
-            <VStack flex={1} align="start" spacing={0}>
-              <HStack>
-                <Text fontWeight="medium" fontSize="sm">
+            <div className="flex-1 flex flex-col">
+              <div className="flex items-center gap-2">
+                <span className="font-medium text-sm">
                   Version {version.version}
-                </Text>
+                </span>
                 {isLatest && (
-                  <Badge colorScheme="green" size="sm">
+                  <Badge variant="secondary" className="text-xs">
                     Latest
                   </Badge>
                 )}
-              </HStack>
-              <Text fontSize="xs" color="text.muted">
+              </div>
+              <span className="text-xs text-muted-foreground">
                 {formatDate(version.createdAt)} - {version.fields.length} fields
-              </Text>
-            </VStack>
+              </span>
+            </div>
             <Button
-              size="xs"
               variant="ghost"
+              size="sm"
               onClick={() =>
                 navigate(`/schemas/${schemaId}/versions/${version.version}`)
               }
             >
               View
             </Button>
-          </HStack>
+          </div>
         )
       })}
-    </VStack>
+    </div>
   )
 }

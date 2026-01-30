@@ -1,28 +1,24 @@
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { Switch } from '@/components/ui/switch'
 import {
-  Box,
-  VStack,
-  FormControl,
-  FormLabel,
-  Input,
-  Textarea,
-  Switch,
-  Text,
   Accordion,
+  AccordionContent,
   AccordionItem,
-  AccordionButton,
-  AccordionPanel,
-  AccordionIcon,
-  Slider,
-  SliderTrack,
-  SliderFilledTrack,
-  SliderThumb,
-  HStack,
-} from '@chakra-ui/react'
+  AccordionTrigger,
+} from '@/components/ui/accordion'
 import { FieldTypeSelect } from './FieldTypeSelect'
 import { EnumOptionsEditor } from './EnumOptionsEditor'
 import { ValidationRulesEditor } from './ValidationRulesEditor'
 import { TagInput } from '@/components/common'
 import { useSchemaBuilderContext } from './SchemaBuilderProvider'
+import {
+  FieldSet,
+  FieldGroup,
+  Field,
+  FieldLabel,
+  FieldDescription,
+} from '@/components/ui/Field'
 
 export function FieldPropertiesPanel() {
   const { state, selectedField, updateField } = useSchemaBuilderContext()
@@ -30,9 +26,9 @@ export function FieldPropertiesPanel() {
 
   if (selectedIndex === null || !selectedField) {
     return (
-      <Box p={4} color="text.muted" textAlign="center">
-        <Text>Select a field to edit its properties</Text>
-      </Box>
+      <div className="p-4 text-center text-muted-foreground">
+        <p>Select a field to edit its properties</p>
+      </div>
     )
   }
 
@@ -41,132 +37,150 @@ export function FieldPropertiesPanel() {
   }
 
   return (
-    <Box p={4} overflowY="auto" h="full">
-      <VStack spacing={4} align="stretch">
-        <FormControl>
-          <FormLabel fontSize="sm">Label</FormLabel>
-          <Input
-            size="sm"
-            value={selectedField.label}
-            onChange={(e) => update({ label: e.target.value })}
-            placeholder="Field label"
-          />
-        </FormControl>
+    <div className="h-full overflow-y-auto p-4">
+      <FieldSet legend="Field Properties">
+        <FieldGroup>
+          <Field>
+            <FieldLabel htmlFor="field-label" isRequired>
+              Label
+            </FieldLabel>
+            <Input
+              id="field-label"
+              value={selectedField.label}
+              onChange={(e) => update({ label: e.target.value })}
+              placeholder="Field label"
+            />
+          </Field>
 
-        <FormControl>
-          <FormLabel fontSize="sm">Key</FormLabel>
-          <Input
-            size="sm"
-            value={selectedField.key}
-            onChange={(e) => update({ key: e.target.value })}
-            placeholder="field_key"
-            fontFamily="mono"
-          />
-        </FormControl>
+          <Field>
+            <FieldLabel htmlFor="field-key" isRequired>
+              Key
+            </FieldLabel>
+            <Input
+              id="field-key"
+              value={selectedField.key}
+              onChange={(e) => update({ key: e.target.value })}
+              placeholder="field_key"
+              className="font-mono"
+            />
+            <FieldDescription>
+              Unique identifier used in the output JSON
+            </FieldDescription>
+          </Field>
 
-        <FormControl>
-          <FormLabel fontSize="sm">Type</FormLabel>
-          <FieldTypeSelect
-            value={selectedField.type}
-            onChange={(type) => {
-              const changes: Parameters<typeof updateField>[1] = { type }
-              if (type === 'enum' && !selectedField.enumOptions?.length) {
-                changes.enumOptions = ['Option 1', 'Option 2']
-              }
-              if (type !== 'enum') {
-                changes.enumOptions = undefined
-              }
-              update(changes)
-            }}
-          />
-        </FormControl>
+          <Field>
+            <FieldLabel htmlFor="field-type" isRequired>
+              Type
+            </FieldLabel>
+            <FieldTypeSelect
+              value={selectedField.type}
+              onChange={(type) => {
+                const changes: Parameters<typeof updateField>[1] = { type }
+                if (type === 'enum' && !selectedField.enumOptions?.length) {
+                  changes.enumOptions = ['Option 1', 'Option 2']
+                }
+                if (type !== 'enum') {
+                  changes.enumOptions = undefined
+                }
+                update(changes)
+              }}
+            />
+          </Field>
 
-        <FormControl>
-          <FormLabel fontSize="sm">Instructions</FormLabel>
-          <Textarea
-            size="sm"
-            value={selectedField.instructions}
-            onChange={(e) => update({ instructions: e.target.value })}
-            placeholder="Instructions for the AI to extract this field..."
-            rows={3}
-          />
-        </FormControl>
+          <Field>
+            <FieldLabel htmlFor="field-instructions">
+              Instructions
+            </FieldLabel>
+            <Textarea
+              id="field-instructions"
+              value={selectedField.instructions}
+              onChange={(e) => update({ instructions: e.target.value })}
+              placeholder="Instructions for the AI to extract this field..."
+              rows={3}
+            />
+            <FieldDescription>
+              Guide the AI on how to extract this field from source pages
+            </FieldDescription>
+          </Field>
 
-        <FormControl display="flex" alignItems="center">
-          <FormLabel fontSize="sm" mb={0}>
-            Required
-          </FormLabel>
-          <Switch
-            isChecked={selectedField.required}
-            onChange={(e) => update({ required: e.target.checked })}
-          />
-        </FormControl>
+          <Field orientation="horizontal">
+            <FieldLabel htmlFor="field-required">
+              Required
+            </FieldLabel>
+            <Switch
+              id="field-required"
+              checked={selectedField.required}
+              onCheckedChange={(checked) => update({ required: checked })}
+              aria-describedby="required-description"
+            />
+          </Field>
 
-        {selectedField.type === 'enum' && (
-          <EnumOptionsEditor
-            value={selectedField.enumOptions ?? []}
-            onChange={(enumOptions) => update({ enumOptions })}
-          />
-        )}
+          {selectedField.type === 'enum' && (
+            <Field>
+              <EnumOptionsEditor
+                value={selectedField.enumOptions ?? []}
+                onChange={(enumOptions) => update({ enumOptions })}
+              />
+            </Field>
+          )}
+        </FieldGroup>
+      </FieldSet>
 
-        <Accordion allowMultiple>
-          <AccordionItem border="none">
-            <AccordionButton px={0}>
-              <Box flex={1} textAlign="left" fontSize="sm" fontWeight="medium">
-                Advanced Settings
-              </Box>
-              <AccordionIcon />
-            </AccordionButton>
-            <AccordionPanel px={0} pb={4}>
-              <VStack spacing={4} align="stretch">
-                {(selectedField.type === 'string' || selectedField.type === 'string[]') && (
+      <Accordion type="multiple" className="mt-6">
+        <AccordionItem value="advanced" className="border-none">
+          <AccordionTrigger className="px-0 text-sm font-medium">
+            Advanced Settings
+          </AccordionTrigger>
+          <AccordionContent className="px-0 pb-4">
+            <FieldGroup>
+              {(selectedField.type === 'string' || selectedField.type === 'string[]') && (
+                <Field>
                   <ValidationRulesEditor
                     value={selectedField.validation}
                     onChange={(validation) => update({ validation })}
                   />
-                )}
+                </Field>
+              )}
 
-                <FormControl>
-                  <FormLabel fontSize="sm">
-                    Confidence Threshold: {(selectedField.confidenceThreshold ?? 0.7).toFixed(2)}
-                  </FormLabel>
-                  <Slider
-                    min={0}
-                    max={1}
-                    step={0.05}
-                    value={selectedField.confidenceThreshold ?? 0.7}
-                    onChange={(value) => update({ confidenceThreshold: value })}
-                  >
-                    <SliderTrack>
-                      <SliderFilledTrack />
-                    </SliderTrack>
-                    <SliderThumb />
-                  </Slider>
-                  <HStack justify="space-between" fontSize="xs" color="text.muted">
-                    <Text>0 (lenient)</Text>
-                    <Text>1 (strict)</Text>
-                  </HStack>
-                </FormControl>
+              <Field>
+                <FieldLabel htmlFor="confidence-threshold">
+                  Confidence Threshold: {(selectedField.confidenceThreshold ?? 0.7).toFixed(2)}
+                </FieldLabel>
+                <input
+                  id="confidence-threshold"
+                  type="range"
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  value={selectedField.confidenceThreshold ?? 0.7}
+                  onChange={(e) => update({ confidenceThreshold: parseFloat(e.target.value) })}
+                  className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer"
+                  aria-label="Confidence threshold"
+                />
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>0 (lenient)</span>
+                  <span>1 (strict)</span>
+                </div>
+              </Field>
 
-                <FormControl>
-                  <FormLabel fontSize="sm">Source Hints</FormLabel>
-                  <TagInput
-                    value={selectedField.sourceHints ?? []}
-                    onChange={(sourceHints) =>
-                      update({ sourceHints: sourceHints.length > 0 ? sourceHints : undefined })
-                    }
-                    placeholder="URL patterns..."
-                    maxTags={20}
-                  />
-                  <Text fontSize="xs" color="text.muted" mt={1}>
-                    URL patterns where this data might be found
-                  </Text>
-                </FormControl>
-              </VStack>
-            </AccordionPanel>
-          </AccordionItem>
-        </Accordion>
-      </VStack>
-    </Box>
+              <Field>
+                <FieldLabel htmlFor="source-hints">Source Hints</FieldLabel>
+                <TagInput
+                  value={selectedField.sourceHints ?? []}
+                  onChange={(sourceHints) =>
+                    update({ sourceHints: sourceHints.length > 0 ? sourceHints : undefined })
+                  }
+                  placeholder="URL patterns..."
+                  maxTags={20}
+                />
+                <FieldDescription>
+                  URL patterns where this data might be found
+                </FieldDescription>
+              </Field>
+            </FieldGroup>
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
+    </div>
   )
 }

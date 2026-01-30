@@ -12,8 +12,7 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
-import { VStack, Box, Text, Icon } from '@chakra-ui/react'
-import { HiOutlinePlusCircle } from 'react-icons/hi'
+import { PlusCircle } from 'lucide-react'
 import { FieldRow } from './FieldRow'
 import { useSchemaBuilderContext } from './SchemaBuilderProvider'
 
@@ -44,21 +43,11 @@ export function FieldCanvas() {
 
   if (fields.length === 0) {
     return (
-      <Box
-        borderWidth="2px"
-        borderStyle="dashed"
-        borderColor="border.muted"
-        borderRadius="lg"
-        p={8}
-        textAlign="center"
-        color="text.muted"
-      >
-        <Icon as={HiOutlinePlusCircle} boxSize={10} mb={3} />
-        <Text fontWeight="medium">No fields yet</Text>
-        <Text fontSize="sm" mt={1}>
-          Add fields from the palette on the left
-        </Text>
-      </Box>
+      <div className="border-2 border-dashed border-border rounded-lg p-8 text-center text-muted-foreground">
+        <PlusCircle className="h-10 w-10 mx-auto mb-3" />
+        <p className="font-medium">No fields yet</p>
+        <p className="text-sm mt-1">Add fields from the palette on the left</p>
+      </div>
     )
   }
 
@@ -72,7 +61,7 @@ export function FieldCanvas() {
         items={fields.map((f) => f.key)}
         strategy={verticalListSortingStrategy}
       >
-        <VStack spacing={2} align="stretch">
+        <div className="flex flex-col gap-2" role="list" aria-label="Schema fields">
           {fields.map((field, index) => (
             <FieldRow
               key={field.key}
@@ -81,7 +70,7 @@ export function FieldCanvas() {
               isSelected={index === selectedIndex}
             />
           ))}
-        </VStack>
+        </div>
       </SortableContext>
     </DndContext>
   )
