@@ -5,7 +5,7 @@
   "outputDirectory": "apps/admin/dist",
   "functions": {
     "api/**/*.ts": {
-      "runtime": "@vercel/bun",
+      "runtime": "@vercel/bun@1",
       "maxDuration": 300
     }
   },
