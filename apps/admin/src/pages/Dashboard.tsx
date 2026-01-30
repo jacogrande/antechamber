@@ -164,7 +164,7 @@ export function Dashboard() {
             <h3 className="font-semibold mb-2">Get started</h3>
             <p className="text-muted-foreground text-sm max-w-sm mx-auto">
               Create your first schema in the Schemas section to start
-              collecting onboarding data.
+              collecting data.
             </p>
           </CardContent>
         </Card>

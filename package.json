@@ -1,5 +1,5 @@
 {
-  "name": "onboarding",
+  "name": "tidings",
   "scripts": {
     "dev": "bun run --hot src/index.ts",
     "build:all": "cd apps/admin && bun install && bun run build",

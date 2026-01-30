@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Schema-driven onboarding intake SaaS. Customers provide a website URL, the system crawls and extracts company info based on a custom schema, generates an auto-filled draft with citations, and exports confirmed data via webhooks/API. See `docs/mvp-prd.md` for the full PRD.
+Tidings is a schema-driven intake SaaS. Customers provide a website URL, the system crawls and extracts company info based on a custom schema, generates an auto-filled draft with citations, and exports confirmed data via webhooks/API. See `docs/mvp-prd.md` for the full PRD.
 
 ## Tech Stack
 
@@ -35,7 +35,7 @@ bun test path/to/file.test.ts  # Run a single test file
 - `/api/webhooks` — Register export endpoints
 - `/api/submissions/:id/context-pack` — Assistant-ready context output
 
-**Planned workflow** (`generate_onboarding_draft`): validate input → discover pages → fetch pages → classify pages → extract fields (LLM) → validate/normalize → persist draft → notify
+**Planned workflow** (`generate_tidings_draft`): validate input → discover pages → fetch pages → classify pages → extract fields (LLM) → validate/normalize → persist draft → notify
 
 **Key data types** (defined in PRD §7): `FieldDefinition`, `SchemaVersion`, `Citation`, `ExtractedFieldValue`, `SubmissionDraft`, `SubmissionConfirmed`
 
