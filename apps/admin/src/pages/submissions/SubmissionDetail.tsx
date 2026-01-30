@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { useParams, Link } from 'react-router-dom'
-import { ChevronRight, ExternalLink, Check, AlertCircle } from 'lucide-react'
+import { ChevronRight, ExternalLink, Check, AlertCircle, Pencil } from 'lucide-react'
 import { useSubmission, useConfirmSubmission } from '@/hooks/useSubmissions'
 import { LoadingSpinner, ConfirmDialog } from '@/components/common'
 import { SubmissionStatusBadge } from '@/components/dashboard/SubmissionStatusBadge'
@@ -18,22 +18,42 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import type { FieldEdit } from '@/lib/api/submissions'
 
 export function SubmissionDetail() {
   const { id } = useParams<{ id: string }>()
   const { data, isLoading, error, refetch } = useSubmission(id)
   const confirmMutation = useConfirmSubmission()
   const [isConfirmOpen, setIsConfirmOpen] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
+  const [fieldEdits, setFieldEdits] = useState<Record<string, unknown>>({})
+
+  const handleFieldEdit = (fieldKey: string, value: unknown) => {
+    setFieldEdits((prev) => ({ ...prev, [fieldKey]: value }))
+  }
+
+  const handleCancelEdit = () => {
+    setIsEditing(false)
+    setFieldEdits({})
+  }
 
   const handleConfirm = async () => {
     if (!id) return
 
+    // Convert edits to array format
+    const edits: FieldEdit[] = Object.entries(fieldEdits).map(([fieldKey, value]) => ({
+      fieldKey,
+      value,
+    }))
+
     try {
-      await confirmMutation.mutateAsync(id)
+      await confirmMutation.mutateAsync({ id, params: edits.length > 0 ? { edits } : undefined })
       toast.success('Submission confirmed', {
         description: 'The submission has been confirmed and exported.',
       })
       setIsConfirmOpen(false)
+      setIsEditing(false)
+      setFieldEdits({})
     } catch (err) {
       toast.error('Failed to confirm submission', {
         description: err instanceof Error ? err.message : 'An error occurred',
@@ -96,41 +116,65 @@ export function SubmissionDetail() {
           </p>
         </div>
         {submission.status === 'draft' && (
-          <Button onClick={() => setIsConfirmOpen(true)} disabled={confirmMutation.isPending}>
-            <Check className="h-4 w-4 mr-2" />
-            {confirmMutation.isPending ? 'Confirming...' : 'Confirm Submission'}
-          </Button>
+          <div className="flex items-center gap-2">
+            {isEditing ? (
+              <>
+                <Button variant="outline" onClick={handleCancelEdit}>
+                  Cancel
+                </Button>
+                <Button onClick={() => setIsConfirmOpen(true)} disabled={confirmMutation.isPending}>
+                  <Check className="h-4 w-4 mr-2" />
+                  {Object.keys(fieldEdits).length > 0
+                    ? `Save & Confirm (${Object.keys(fieldEdits).length} edits)`
+                    : 'Confirm Submission'}
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button variant="outline" onClick={() => setIsEditing(true)}>
+                  <Pencil className="h-4 w-4 mr-2" />
+                  Edit Fields
+                </Button>
+                <Button onClick={() => setIsConfirmOpen(true)} disabled={confirmMutation.isPending}>
+                  <Check className="h-4 w-4 mr-2" />
+                  Confirm Submission
+                </Button>
+              </>
+            )}
+          </div>
         )}
       </div>
 
-      {/* Main Content Grid */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        {/* Workflow Progress */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Workflow Progress</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <WorkflowProgress steps={submission.workflowSteps ?? []} />
-          </CardContent>
-        </Card>
+      {/* Workflow Progress */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle className="text-base">Workflow Progress</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <WorkflowProgress steps={submission.workflowSteps ?? []} />
+        </CardContent>
+      </Card>
 
-        {/* Extracted Fields */}
-        <Card className="xl:col-span-2">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base">Extracted Fields</CardTitle>
-              <span className="text-sm text-muted-foreground">
-                {(submission.extractedFields ?? []).filter((f) => f.status === 'found').length} /{' '}
-                {(submission.extractedFields ?? []).length} found
-              </span>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <ExtractedFieldsTable fields={submission.extractedFields ?? []} />
-          </CardContent>
-        </Card>
-      </div>
+      {/* Extracted Fields */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base">Extracted Fields</CardTitle>
+            <span className="text-sm text-muted-foreground">
+              {(submission.extractedFields ?? []).filter((f) => f.status === 'found').length} /{' '}
+              {(submission.extractedFields ?? []).length} found
+            </span>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <ExtractedFieldsTable
+            fields={submission.extractedFields ?? []}
+            isEditing={isEditing}
+            fieldEdits={fieldEdits}
+            onFieldEdit={handleFieldEdit}
+          />
+        </CardContent>
+      </Card>
 
       {/* Crawled Pages */}
       <Card className="mt-6">
