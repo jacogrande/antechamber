@@ -1,164 +1,172 @@
-# Session Handover — 2026-01-29
+# Session Handover — 2026-01-30
 
 ## Work Completed This Session
 
-### Schema Management UX Improvements
-Major refactor of the admin schema builder to improve UX patterns:
+### Workflow Observability & Debugging
+Added comprehensive logging throughout the extraction pipeline:
+- `[app-deps]` - Startup logging for workflow dependency initialization
+- `[workflow]` - Step execution with timing, start/completion logs
+- `[crawl]` - Pipeline progress (robots.txt, page discovery, fetching, extraction)
+- `[fetch]` - Individual page fetch with status codes and timing
+- `[extraction]` - LLM batch processing, confidence scoring
+- `[llm]` - Per-page extraction with timing and field counts
 
-**Phase 1: Foundation Layer**
-- Created `Result<T, E>` type utilities for railway-oriented error handling (`lib/utils/result.ts`)
-- Added standardized validation error types (`lib/errors/validation-errors.ts`)
-- Created pure schema builder service functions (`domain/schema/services/schema-builder.ts`)
+### Submission Detail Page Fixes
+- Fixed crash when viewing pending submissions (undefined `extractedFields`, `artifacts`, `workflowSteps`)
+- Updated `SubmissionDetail` type to make workflow data optional
+- Fixed API response shape mismatch between backend and frontend
+- Added `extractedFields` transformation with proper field mapping (`key` → `fieldKey`, etc.)
+- Added `artifacts` extraction from crawl step output
+- Added `confidence` and `reason` fields to extracted field display
 
-**Phase 2: Undo/Redo Infrastructure**
-- Added `UndoAction` type definitions for all field operations (`domain/undo/models/undo-action.ts`)
-- Created undo history service with past/future stacks (`domain/undo/services/undo-history.ts`)
-- Integrated full undo/redo into `useSchemaBuilder` hook with 50-action history
+### Extraction Quality Improvements
+- **Stricter LLM prompt**: Now requires direct evidence, defines confidence tiers, prohibits guessing
+- **Evidence validation**: Post-extraction check that penalizes confidence when snippet doesn't contain value
+- **Higher threshold**: Extractions below 50% confidence are now skipped entirely (was 20%)
+- Updated tool schema to require `reason` for all extractions
 
-**Phase 3: Keyboard Shortcuts**
-- Created `useKeyboardShortcuts` hook with Cmd+Z, Cmd+Shift+Z, Delete, Cmd+D, Arrow key navigation
-- Added undo/redo icon buttons to builder header with tooltips
+### Field Editing Before Confirmation
+- Added "Edit Fields" mode to submission detail page
+- Inline field editing with type-appropriate inputs (text, number, checkbox, arrays)
+- Visual feedback for edited rows (yellow highlight, "Edited" badge)
+- Edits are sent with confirm request to backend
+- Fixed `confirmSubmission` API to send required `confirmedBy` field
 
-**Phase 4: Visual Components**
-- Created `FieldTypeBadge` component with colored badges per field type
-- Created `FieldsTable` with expandable rows for schema detail page
-- Created composable `Field` components (`FieldSet`, `FieldGroup`, `FieldLabel`, etc.)
-- Created `CollapsibleTableRow` for progressive disclosure
+### AI SaaS Context Pack Templates
+Created 5 new schema templates for AI assistant use cases:
+1. **AI Assistant Context Pack** - Core customer context fields
+2. **Brand Voice & Messaging** - Tone, personality, terminology
+3. **Product Catalog Context** - Products, pricing, features
+4. **Compliance & Security Profile** - Certifications, guardrails data
+5. **Support Context Pack** - Help channels, documentation URLs
 
-**Phase 5: Figma-Style Inspector Pattern (Final Design)**
-After UX research, refactored from 3-panel layout to clean 2-panel inspector pattern:
-- Created `SchemaFieldList` - minimal draggable field list (left panel)
-- Created `SchemaInspector` - focused properties panel (right panel)
-- Redesigned `SchemaBuilder` with minimal header and two-panel layout
+Added new `ai` category to schema template gallery.
 
-### UX Research Conducted
-Researched best practices for complex object editors:
-- Analyzed Figma, Webflow, Framer inspector patterns
-- Reviewed Notion, Airtable, Tally approaches
-- Studied form builder UX (Typeform, JotForm)
-- Concluded: Inspector panel pattern best for 8+ property objects
+### UI/UX Improvements
+- Made Workflow Progress horizontal (full-width row) instead of column
+- Added confidence indicator with color-coded progress bar
+- Enhanced citations display with inline snippets (not just URLs)
+- Added reason tooltips for extraction explanations
 
 ## Current State
 
 **Branch**: `main`
-**Uncommitted changes**: Yes — schema UX improvements (not yet committed)
+**Uncommitted changes**: Yes - significant changes across frontend and backend
 
-**Changed files**:
-- `apps/admin/src/components/schemas/SchemaBuilder.tsx` — New 2-panel Figma-style layout
-- `apps/admin/src/components/schemas/SchemaBuilderProvider.tsx` — Added undo/redo exports
-- `apps/admin/src/hooks/useSchemaBuilder.ts` — Full undo/redo with history
-- `apps/admin/src/pages/schemas/SchemaDetail.tsx` — Uses new FieldsTable
-- `apps/admin/src/theme/components/badge.ts` — Field type color variants
+### Modified Files (Frontend - apps/admin)
+- `src/components/schemas/SchemaTemplateGallery.tsx` - Added 'ai' category
+- `src/components/submissions/ExtractedFieldsTable.tsx` - Editing, confidence, citations
+- `src/components/submissions/WorkflowProgress.tsx` - Horizontal layout
+- `src/hooks/useSubmissions.ts` - Updated confirm mutation signature
+- `src/lib/api/submissions.ts` - Added FieldEdit types, confirm params
+- `src/lib/example-schemas.ts` - Added 5 AI context pack templates
+- `src/pages/submissions/SubmissionDetail.tsx` - Field editing, layout changes
+- `src/types/submission.ts` - Added confidence, reason, optional fields
 
-**New files**:
-- `apps/admin/src/lib/utils/result.ts`
-- `apps/admin/src/lib/errors/validation-errors.ts`
-- `apps/admin/src/domain/schema/services/schema-builder.ts`
-- `apps/admin/src/domain/undo/models/undo-action.ts`
-- `apps/admin/src/domain/undo/services/undo-history.ts`
-- `apps/admin/src/hooks/useKeyboardShortcuts.ts`
-- `apps/admin/src/components/schemas/FieldTypeBadge.tsx`
-- `apps/admin/src/components/schemas/FieldsTable.tsx`
-- `apps/admin/src/components/schemas/SchemaFieldList.tsx`
-- `apps/admin/src/components/schemas/SchemaInspector.tsx`
-- `apps/admin/src/components/ui/Field.tsx`
-- `apps/admin/src/components/ui/CollapsibleTableRow.tsx`
-
-**Test suite**: All passing (822 pass, 7 pre-existing failures in workflow tests)
-**Type check**: Clean
+### Modified Files (Backend - src/)
+- `src/app-deps.ts` - Added startup logging
+- `src/lib/crawl/fetcher.ts` - Per-fetch logging
+- `src/lib/crawl/pipeline.ts` - Pipeline stage logging
+- `src/lib/extraction/facade.ts` - Batch processing logs
+- `src/lib/extraction/page-extractor.ts` - LLM timing logs
+- `src/lib/extraction/parser.ts` - Evidence validation, confidence penalty
+- `src/lib/extraction/prompt.ts` - Stricter instructions, required reason
+- `src/lib/workflow/runner.ts` - Step execution logging
+- `src/lib/workflow/steps.ts` - Per-step progress logs
+- `src/routes/submissions.ts` - Fixed response shape, added artifacts
 
 ## Key Decisions Made
 
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
-| Layout pattern | 2-panel inspector (Figma-style) | Research showed inspector pattern best for complex objects with 8+ properties. Inline editing creates too much visual noise. |
-| Undo/redo | Dual-stack (past/future) | Enables full undo/redo with action replay. 50-action limit prevents memory bloat. |
-| Field list | Minimal with type badges | Users need compact overview while editing in inspector. Just label + type + required indicator. |
-| Advanced properties | Collapsible section | Reduces cognitive load. Confidence threshold, validation, source hints tucked away by default. |
-| Tree attempt | Rejected | Tried inline editing tree view but created too much visual complexity per UX research findings. |
+| Confidence threshold | 50% minimum | User reported 40% confidence fields still showing - too permissive |
+| Evidence validation | Penalize if value not in snippet | LLM was guessing company_size from contact info - need verification |
+| Field editing | Inline inputs in table | Simpler than modal, shows context while editing |
+| Workflow layout | Horizontal full-width | Takes less vertical space, shows pipeline flow better |
+| AI templates | 5 focused packs | Based on positioning doc - each serves specific AI assistant need |
 
 ## Blockers & Open Questions
 
-### Code Duplication (Medium Priority)
-`generateKey()`, `getDefaultLabel()`, `createField()` duplicated between:
-- `hooks/useSchemaBuilder.ts`
-- `domain/schema/services/schema-builder.ts`
+### None Critical
+All features implemented and building successfully.
 
-Should refactor hook to import from service.
-
-### Pure Service Not Wired
-The `schema-builder.ts` service was created but hook still has its own reducer logic. Future refactor should wire them together for better testability.
-
-### Pre-existing Issues
-- 7 workflow test failures (unrelated to this work)
-- 1 lint error in SchemaDetail.tsx (pre-existing `no-misused-promises`)
+### Minor Issues
+- Console has some debug logs that could be removed or made conditional
+- Field editing for `enum` types just uses text input (would need schema context for dropdown)
 
 ## Next Steps
 
-### 1. Commit Schema UX Changes
+### 1. Commit All Changes
 ```bash
 git add -A
-git commit -m "feat(admin): refactor schema builder with Figma-style inspector pattern"
+git commit -m "feat: add workflow logging, field editing, AI context templates
+
+- Add comprehensive logging throughout extraction pipeline
+- Fix submission detail page for pending submissions
+- Add evidence validation to penalize unsupported extractions
+- Increase confidence threshold to 50%
+- Add field editing UI before confirmation
+- Create 5 AI SaaS context pack templates
+- Make workflow progress horizontal layout"
 ```
 
-### 2. Test the New UI
-- Navigate to /schemas/new and test the new layout
-- Verify undo/redo works (Cmd+Z, Cmd+Shift+Z)
-- Test keyboard shortcuts (Delete, Cmd+D, arrows)
-- Check drag-and-drop field reordering
+### 2. Test the Changes
+- Create a new submission and watch logs
+- Verify low-confidence extractions are filtered
+- Test field editing flow before confirmation
+- Browse AI context pack templates
 
-### 3. Polish & Iterate
-- Refine visual styling based on feedback
-- Add mobile responsive breakpoint handling
-- Consider adding field search/filter for large schemas
+### 3. Consider Platform Features (from positioning doc)
+Priority features to implement:
+1. **Strict Mode** - Schema-level toggle for evidence-only output
+2. **RAG Export** - `/export/rag` endpoint with chunked docs
+3. **Guardrails Pack** - `/guardrails` endpoint with approved/unverified claims
+4. **Minimal Follow-ups** - Generate questions only for missing fields
 
-### 4. Eliminate Code Duplication
-Refactor `useSchemaBuilder.ts` to import utilities from `schema-builder.ts`
-
-### 5. Add Unit Tests
-- Test `result.ts` utilities
-- Test `undo-history.ts` functions
-- Test undo/redo in `useSchemaBuilder.ts`
+### 4. Remove Debug Logging (Optional)
+Make logging conditional on `NODE_ENV=development` or add log level config.
 
 ## Important Files
 
-### Core Schema Builder (New Design)
-- `apps/admin/src/components/schemas/SchemaBuilder.tsx` — Main 2-panel layout
-- `apps/admin/src/components/schemas/SchemaFieldList.tsx` — Left panel field list
-- `apps/admin/src/components/schemas/SchemaInspector.tsx` — Right panel properties
+### Extraction Quality
+- `src/lib/extraction/parser.ts` - Evidence validation logic
+- `src/lib/extraction/prompt.ts` - LLM instructions
 
-### Undo/Redo Infrastructure
-- `apps/admin/src/hooks/useSchemaBuilder.ts` — Hook with history
-- `apps/admin/src/domain/undo/services/undo-history.ts` — History management
-- `apps/admin/src/domain/undo/models/undo-action.ts` — Action types
+### Submission Detail
+- `apps/admin/src/pages/submissions/SubmissionDetail.tsx` - Main page
+- `apps/admin/src/components/submissions/ExtractedFieldsTable.tsx` - Field display/editing
+- `src/routes/submissions.ts` - API response transformation
 
-### Foundation Utilities
-- `apps/admin/src/lib/utils/result.ts` — Result type
-- `apps/admin/src/lib/errors/validation-errors.ts` — Error factories
-
-### UI Components
-- `apps/admin/src/components/schemas/FieldTypeBadge.tsx` — Type badges
-- `apps/admin/src/components/ui/Field.tsx` — Composable form fields
+### AI Templates
+- `apps/admin/src/lib/example-schemas.ts` - All templates including AI packs
 
 ## Commands to Resume
 
 ```bash
-cd /Users/jackson/Code/projects/onboarding/apps/admin
+cd /Users/jackson/Code/projects/onboarding
+
+# Check status
 git status
 
-# Type check
-bunx tsc --noEmit
+# Type check both projects
+bun run typecheck
+cd apps/admin && bun run build && cd ..
 
-# Run tests
-cd ../.. && bun test
+# Start both servers (two terminals)
+# Terminal 1 - Backend:
+bun run dev
 
-# Start dev server
+# Terminal 2 - Frontend:
 cd apps/admin && bun run dev
 
-# View the schema builder
-# Navigate to http://localhost:5173/schemas/new
+# Test a submission
+# 1. Go to http://localhost:5173
+# 2. Create schema from AI template
+# 3. Create submission with a company URL
+# 4. Watch backend logs for extraction progress
+# 5. View submission detail, test field editing
 
 # Commit when ready
 git add -A
-git commit -m "feat(admin): refactor schema builder with Figma-style inspector pattern"
+git commit -m "feat: workflow observability, field editing, AI context templates"
 ```
