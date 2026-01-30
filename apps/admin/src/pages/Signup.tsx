@@ -104,7 +104,7 @@ export function Signup() {
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <Card className="max-w-md w-full">
         <CardHeader className="text-center pb-0">
-          <h1 className="text-2xl font-semibold text-primary">Tidings</h1>
+          <h1 className="text-2xl font-semibold text-primary">Antechamber</h1>
           <p className="mt-2 text-muted-foreground">Create your account</p>
         </CardHeader>
         <CardContent className="pt-6">
