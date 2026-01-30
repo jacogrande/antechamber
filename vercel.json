@@ -3,7 +3,6 @@
   "bunVersion": "1.x",
   "buildCommand": "bun run build:all",
   "installCommand": "bun install",
-  "outputDirectory": "apps/admin/dist",
   "functions": {
     "api/**/*.ts": {
       "maxDuration": 300
