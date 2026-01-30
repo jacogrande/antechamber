@@ -54,6 +54,7 @@ export async function fetchPage(
   config: CrawlConfig = DEFAULT_CRAWL_CONFIG,
   fetchFn: FetchFn = fetch,
 ): Promise<FetchedPage | null> {
+  const startTime = Date.now();
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), config.requestTimeoutMs);
@@ -65,15 +66,23 @@ export async function fetchPage(
     });
 
     clearTimeout(timeout);
+    const elapsed = Date.now() - startTime;
 
     // Skip non-success responses
-    if (!response.ok) return null;
+    if (!response.ok) {
+      console.log(`[fetch] ${url} → ${response.status} (${elapsed}ms) [skipped: non-2xx]`);
+      return null;
+    }
 
     // Check Content-Type — only accept HTML
     const contentType = response.headers.get('content-type') ?? '';
-    if (!contentType.includes('text/html')) return null;
+    if (!contentType.includes('text/html')) {
+      console.log(`[fetch] ${url} → ${response.status} (${elapsed}ms) [skipped: ${contentType}]`);
+      return null;
+    }
 
     const html = await response.text();
+    console.log(`[fetch] ${url} → ${response.status} (${elapsed}ms, ${html.length} bytes)`);
 
     return {
       url,
@@ -82,8 +91,10 @@ export async function fetchPage(
       contentType,
       fetchedAt: new Date().toISOString(),
     };
-  } catch {
-    // Timeout, network error, etc.
+  } catch (err) {
+    const elapsed = Date.now() - startTime;
+    const errMsg = err instanceof Error ? err.message : String(err);
+    console.log(`[fetch] ${url} → ERROR (${elapsed}ms): ${errMsg}`);
     return null;
   }
 }

@@ -72,6 +72,9 @@ export class WorkflowRunner {
     const { db } = this.deps;
     const stepOutputs = new Map<string, unknown>();
 
+    console.log(`[workflow:${workflow.name}] Starting execution for submission ${submissionId}`);
+    console.log(`[workflow:${workflow.name}] Steps: ${workflow.steps.map(s => s.name).join(' → ')}`);
+
     // Mark run as running
     await db
       .update(workflowRuns)
@@ -107,6 +110,7 @@ export class WorkflowRunner {
       }
 
       // All steps completed — mark run as completed
+      console.log(`[workflow:${workflow.name}] All steps completed successfully for submission ${submissionId}`);
       await db
         .update(workflowRuns)
         .set({
@@ -119,6 +123,7 @@ export class WorkflowRunner {
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : String(err);
+      console.error(`[workflow:${workflow.name}] Failed for submission ${submissionId}:`, errorMessage);
       await db
         .update(workflowRuns)
         .set({
@@ -184,12 +189,17 @@ export class WorkflowRunner {
     let lastError: unknown;
     for (let attempt = 1; attempt <= policy.maxAttempts; attempt++) {
       record.attempts = attempt;
+      ctx.log(`Step "${step.name}" starting (attempt ${attempt}/${policy.maxAttempts}, timeout: ${policy.timeoutMs}ms)`);
+      const stepStartTime = Date.now();
       try {
         const output = await withTimeout(
           step.run(ctx),
           policy.timeoutMs,
           step.name,
         );
+
+        const elapsed = Date.now() - stepStartTime;
+        ctx.log(`Step "${step.name}" completed in ${elapsed}ms`);
 
         // Success
         record.status = 'completed';

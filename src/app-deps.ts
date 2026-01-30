@@ -12,6 +12,9 @@ import type { WorkflowDeps } from './lib/workflow/types';
 export function getWorkflowDeps(): WorkflowDeps | null {
   const env = getEnv();
 
+  console.log('[app-deps] Initializing workflow dependencies...');
+  console.log('[app-deps] ANTHROPIC_API_KEY:', env.ANTHROPIC_API_KEY ? 'configured' : 'missing');
+
   if (!env.ANTHROPIC_API_KEY) {
     console.warn(
       '[app-deps] ANTHROPIC_API_KEY not configured — workflow execution disabled',
@@ -31,6 +34,7 @@ export function getWorkflowDeps(): WorkflowDeps | null {
     );
   }
 
+  console.log('[app-deps] Workflow dependencies initialized successfully');
   return {
     db: getDb(),
     storage,

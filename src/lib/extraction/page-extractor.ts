@@ -26,6 +26,7 @@ export async function extractFieldsFromPage(
   const cfg = { ...DEFAULT_EXTRACTION_CONFIG, ...config };
 
   if (page.wordCount < cfg.minWordCount) {
+    console.log(`[llm] Skipping page (${page.wordCount} words < ${cfg.minWordCount} min): ${page.url}`);
     return {
       url: page.url,
       pageTitle: page.title,
@@ -33,6 +34,9 @@ export async function extractFieldsFromPage(
       fields: [],
     };
   }
+
+  console.log(`[llm] Extracting from page: ${page.url} (${page.wordCount} words)`);
+  const llmStart = Date.now();
 
   const system = buildSystemPrompt();
   const userMessage = buildUserMessage(fields, page, { maxBodyChars: cfg.maxBodyChars });
@@ -50,7 +54,10 @@ export async function extractFieldsFromPage(
     },
   );
 
+  const llmTime = Date.now() - llmStart;
   const parsed = parseExtractionResult(result.input, fields);
+  const foundFields = parsed.filter(f => f.confidence > 0).length;
+  console.log(`[llm] LLM response in ${llmTime}ms, found ${foundFields}/${fields.length} fields`);
 
   return {
     url: page.url,

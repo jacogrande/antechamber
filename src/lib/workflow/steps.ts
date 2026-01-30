@@ -34,8 +34,9 @@ export const validateStep: StepDefinition<ValidateOutput> = {
   name: STEP_NAMES.VALIDATE,
   retryPolicy: { maxAttempts: 1, timeoutMs: 10000 },
   async run(ctx) {
-    const { db, submissionId } = ctx;
+    const { db, submissionId, log } = ctx;
 
+    log('Loading submission from database...');
     // Load submission
     const [submission] = await db
       .select()
@@ -45,8 +46,10 @@ export const validateStep: StepDefinition<ValidateOutput> = {
     if (!submission) {
       throw new NotFoundError('Submission not found');
     }
+    log(`Submission loaded: ${submission.websiteUrl}`);
 
     // Load schema (tenant-scoped)
+    log('Loading schema...');
     const [schema] = await db
       .select()
       .from(schemas)
@@ -60,6 +63,7 @@ export const validateStep: StepDefinition<ValidateOutput> = {
     if (!schema) {
       throw new NotFoundError('Schema not found');
     }
+    log(`Schema loaded: ${schema.name}`);
 
     // Resolve version (use submission's schemaVersion)
     const [version] = await db
@@ -76,13 +80,18 @@ export const validateStep: StepDefinition<ValidateOutput> = {
       throw new NotFoundError('Schema version not found');
     }
 
+    const fields = parseFieldDefinitions(version.fields);
+    log(`Schema version ${submission.schemaVersion} has ${fields.length} fields`);
+
     // Validate URL (SSRF prevention, normalization)
+    log(`Validating URL: ${submission.websiteUrl}`);
     await validateUrl(submission.websiteUrl);
+    log('URL validation passed');
 
     return {
       schemaId: submission.schemaId,
       schemaVersion: submission.schemaVersion,
-      fields: parseFieldDefinitions(version.fields),
+      fields,
       websiteUrl: submission.websiteUrl,
       tenantId: submission.tenantId,
     };
@@ -113,8 +122,10 @@ export const crawlStep: StepDefinition<CrawlOutput> = {
   name: STEP_NAMES.CRAWL,
   retryPolicy: { maxAttempts: 3, timeoutMs: 180000 },
   async run(ctx) {
+    const { log } = ctx;
     const validateOutput = ctx.getStepOutput<ValidateOutput>(STEP_NAMES.VALIDATE);
 
+    log(`Starting crawl of ${validateOutput.websiteUrl}`);
     const result = await runCrawlPipeline(
       validateOutput.websiteUrl,
       ctx.runId,
@@ -122,6 +133,11 @@ export const crawlStep: StepDefinition<CrawlOutput> = {
       undefined,
       ctx.fetchFn,
     );
+
+    log(`Crawl complete: ${result.extractedContent.length} pages fetched, ${result.skippedUrls.length} skipped`);
+    if (result.skippedUrls.length > 0) {
+      log(`Skipped URLs: ${result.skippedUrls.slice(0, 5).join(', ')}${result.skippedUrls.length > 5 ? '...' : ''}`);
+    }
 
     return {
       origin: result.origin,
@@ -158,9 +174,11 @@ export const extractStep: StepDefinition<ExtractOutput> = {
   name: STEP_NAMES.EXTRACT,
   retryPolicy: { maxAttempts: 2, timeoutMs: 300000 },
   async run(ctx) {
+    const { log } = ctx;
     const validateOutput = ctx.getStepOutput<ValidateOutput>(STEP_NAMES.VALIDATE);
     const crawlOutput = ctx.getStepOutput<CrawlOutput>(STEP_NAMES.CRAWL);
 
+    log(`Starting LLM extraction for ${validateOutput.fields.length} fields from ${crawlOutput.pageCount} pages`);
     const result = await extractAndSynthesize(
       {
         fields: validateOutput.fields,
@@ -168,6 +186,9 @@ export const extractStep: StepDefinition<ExtractOutput> = {
       },
       ctx.llmClient,
     );
+
+    const foundCount = result.fields.filter(f => f.confidence > 0 && f.value !== null).length;
+    log(`Extraction complete: ${foundCount}/${result.fields.length} fields have values`);
 
     return {
       fields: result.fields,
@@ -190,8 +211,11 @@ export const persistDraftStep: StepDefinition<PersistDraftOutput> = {
   name: STEP_NAMES.PERSIST_DRAFT,
   retryPolicy: { maxAttempts: 3, timeoutMs: 15000 },
   async run(ctx) {
+    const { log } = ctx;
     const extractOutput = ctx.getStepOutput<ExtractOutput>(STEP_NAMES.EXTRACT);
 
+    log(`Persisting ${extractOutput.fields.length} extracted fields to database`);
+    log(`Fields: ${JSON.stringify(extractOutput.fields.map(f => ({ key: f.key, value: f.value, status: f.status })))}`);
     await ctx.db
       .update(submissions)
       .set({
@@ -200,6 +224,8 @@ export const persistDraftStep: StepDefinition<PersistDraftOutput> = {
         updatedAt: new Date(),
       })
       .where(eq(submissions.id, ctx.submissionId));
+
+    log('Submission status updated to draft');
 
     return {
       submissionId: ctx.submissionId,
