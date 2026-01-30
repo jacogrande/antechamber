@@ -4,7 +4,6 @@ import { SchemaBuilderProvider } from '@/components/schemas/SchemaBuilderProvide
 import { SchemaBuilder } from '@/components/schemas/SchemaBuilder'
 import { useCreateSchema } from '@/hooks/useSchemas'
 import { useSchemaBuilderContext } from '@/components/schemas/SchemaBuilderProvider'
-import { useCelebration } from '@/hooks/useCelebration'
 import type { FieldDefinition } from '@/types/schema'
 
 interface TemplateState {
@@ -18,7 +17,6 @@ function SchemaCreateContent() {
   const navigate = useNavigate()
   const { state } = useSchemaBuilderContext()
   const createSchema = useCreateSchema()
-  const { celebrate } = useCelebration()
 
   const handleSave = async () => {
     try {
@@ -26,7 +24,6 @@ function SchemaCreateContent() {
         name: state.name,
         fields: state.fields,
       })
-      celebrate('success')
       toast.success('Schema created')
       navigate(`/schemas/${result.schema.id}`)
     } catch (error) {

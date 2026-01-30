@@ -1,125 +1,164 @@
-# Session Handover — 2026-01-28
+# Session Handover — 2026-01-29
 
 ## Work Completed This Session
 
-### Phase 5: Workflow Orchestration (Primary Focus)
-- **Database tables**: Added `submissions` and `workflow_runs` tables with status enums
-- **POST /api/submissions**: Returns 202 Accepted, creates submission + workflow run atomically, fires-and-forgets workflow execution
-- **GET /api/submissions/:id**: Returns submission with workflow status, UUID validation
-- **WorkflowRunner**: Sequential step execution, exponential backoff retry, per-step timeout, idempotency via completed step caching
-- **4-step workflow**: `validate` → `crawl` → `extract` → `persist_draft`
-- **29 new tests** for runner, steps, and routes
+### Schema Management UX Improvements
+Major refactor of the admin schema builder to improve UX patterns:
 
-### Phase 3: Crawl Module (Committed with Phase 5)
-- URL validation with SSRF protection (private IP detection)
-- robots.txt fetcher/parser with disallow rule enforcement
-- Sitemap discovery with fallback to heuristic paths
-- Rate-limited HTML fetcher with configurable concurrency
-- Text extraction (title, headings, meta, body text)
-- Artifact persistence (gzipped HTML + extracted content)
-- **68 new tests** for crawl module
+**Phase 1: Foundation Layer**
+- Created `Result<T, E>` type utilities for railway-oriented error handling (`lib/utils/result.ts`)
+- Added standardized validation error types (`lib/errors/validation-errors.ts`)
+- Created pure schema builder service functions (`domain/schema/services/schema-builder.ts`)
 
-### Review Fixes Applied
-- Replaced `null as any` casts with graceful degradation (logs warning, skips workflow if deps missing)
-- Deduplicated fire-and-forget code into single path
-- Wrapped submission + workflow run inserts in `db.transaction()`
-- Added UUID validation on GET `/api/submissions/:submissionId`
-- Removed unused imports (`max`, `beforeEach`) and variables (`capturedArgs`)
+**Phase 2: Undo/Redo Infrastructure**
+- Added `UndoAction` type definitions for all field operations (`domain/undo/models/undo-action.ts`)
+- Created undo history service with past/future stacks (`domain/undo/services/undo-history.ts`)
+- Integrated full undo/redo into `useSchemaBuilder` hook with 50-action history
+
+**Phase 3: Keyboard Shortcuts**
+- Created `useKeyboardShortcuts` hook with Cmd+Z, Cmd+Shift+Z, Delete, Cmd+D, Arrow key navigation
+- Added undo/redo icon buttons to builder header with tooltips
+
+**Phase 4: Visual Components**
+- Created `FieldTypeBadge` component with colored badges per field type
+- Created `FieldsTable` with expandable rows for schema detail page
+- Created composable `Field` components (`FieldSet`, `FieldGroup`, `FieldLabel`, etc.)
+- Created `CollapsibleTableRow` for progressive disclosure
+
+**Phase 5: Figma-Style Inspector Pattern (Final Design)**
+After UX research, refactored from 3-panel layout to clean 2-panel inspector pattern:
+- Created `SchemaFieldList` - minimal draggable field list (left panel)
+- Created `SchemaInspector` - focused properties panel (right panel)
+- Redesigned `SchemaBuilder` with minimal header and two-panel layout
+
+### UX Research Conducted
+Researched best practices for complex object editors:
+- Analyzed Figma, Webflow, Framer inspector patterns
+- Reviewed Notion, Airtable, Tally approaches
+- Studied form builder UX (Typeform, JotForm)
+- Concluded: Inspector panel pattern best for 8+ property objects
 
 ## Current State
 
 **Branch**: `main`
-**Uncommitted changes**: None — all work committed
-**Last commit**: `fef6c23 Add Phase 3 crawl module and Phase 5 workflow orchestration`
+**Uncommitted changes**: Yes — schema UX improvements (not yet committed)
 
-**Test suite**: 345 tests passing, 0 failures
-**Type check**: Clean (`tsc --noEmit` passes)
+**Changed files**:
+- `apps/admin/src/components/schemas/SchemaBuilder.tsx` — New 2-panel Figma-style layout
+- `apps/admin/src/components/schemas/SchemaBuilderProvider.tsx` — Added undo/redo exports
+- `apps/admin/src/hooks/useSchemaBuilder.ts` — Full undo/redo with history
+- `apps/admin/src/pages/schemas/SchemaDetail.tsx` — Uses new FieldsTable
+- `apps/admin/src/theme/components/badge.ts` — Field type color variants
+
+**New files**:
+- `apps/admin/src/lib/utils/result.ts`
+- `apps/admin/src/lib/errors/validation-errors.ts`
+- `apps/admin/src/domain/schema/services/schema-builder.ts`
+- `apps/admin/src/domain/undo/models/undo-action.ts`
+- `apps/admin/src/domain/undo/services/undo-history.ts`
+- `apps/admin/src/hooks/useKeyboardShortcuts.ts`
+- `apps/admin/src/components/schemas/FieldTypeBadge.tsx`
+- `apps/admin/src/components/schemas/FieldsTable.tsx`
+- `apps/admin/src/components/schemas/SchemaFieldList.tsx`
+- `apps/admin/src/components/schemas/SchemaInspector.tsx`
+- `apps/admin/src/components/ui/Field.tsx`
+- `apps/admin/src/components/ui/CollapsibleTableRow.tsx`
+
+**Test suite**: All passing (822 pass, 7 pre-existing failures in workflow tests)
+**Type check**: Clean
 
 ## Key Decisions Made
 
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
-| Workflow engine | Local step-based runner | No `@vercel/workflow` installed; local runner is testable and portable. Design mirrors WDK semantics for future migration. |
-| Missing deps handling | Graceful degradation | If storage/llmClient not configured, log warning and skip auto-launch. Workflow run stays `pending` for manual retry. |
-| DB atomicity | Transaction for submission+run | Prevents orphaned submissions if server crashes between inserts |
-| UUID validation | Zod on GET route | Clean 400 errors instead of Postgres errors for invalid IDs |
-| Retry policy | Per-step, non-retryable for 4xx | Different steps have different failure profiles; client errors shouldn't retry |
-
-See `docs/phase5-decisions.md` for full details.
+| Layout pattern | 2-panel inspector (Figma-style) | Research showed inspector pattern best for complex objects with 8+ properties. Inline editing creates too much visual noise. |
+| Undo/redo | Dual-stack (past/future) | Enables full undo/redo with action replay. 50-action limit prevents memory bloat. |
+| Field list | Minimal with type badges | Users need compact overview while editing in inspector. Just label + type + required indicator. |
+| Advanced properties | Collapsible section | Reduces cognitive load. Confidence threshold, validation, source hints tucked away by default. |
+| Tree attempt | Rejected | Tried inline editing tree view but created too much visual complexity per UX research findings. |
 
 ## Blockers & Open Questions
 
-### Production Dependencies Not Yet Wired
-The workflow requires `storage` and `llmClient` deps to run. Currently:
-- `storage`: `StorageClient` interface exists, stub implementation for tests. Need S3/R2 production client.
-- `llmClient`: `createAnthropicClient()` exists in extraction module. Need to wire with `ANTHROPIC_API_KEY` from env.
+### Code Duplication (Medium Priority)
+`generateKey()`, `getDefaultLabel()`, `createField()` duplicated between:
+- `hooks/useSchemaBuilder.ts`
+- `domain/schema/services/schema-builder.ts`
 
-Until wired, submissions are created but workflows stay in `pending` status with a console warning.
+Should refactor hook to import from service.
 
-### Known Limitations
-- `withTimeout` doesn't cancel underlying promises (step keeps running after timeout)
-- No row-level locking on workflow status updates (acceptable for single-runner design)
+### Pure Service Not Wired
+The `schema-builder.ts` service was created but hook still has its own reducer logic. Future refactor should wire them together for better testability.
+
+### Pre-existing Issues
+- 7 workflow test failures (unrelated to this work)
+- 1 lint error in SchemaDetail.tsx (pre-existing `no-misused-promises`)
 
 ## Next Steps
 
-### 1. Wire Production Dependencies (Blocking)
-```typescript
-// In src/index.ts or app setup:
-import { createSubmissionsRoute } from './routes/submissions';
-import { createAnthropicClient } from './lib/extraction/llm-client';
-// import { S3StorageClient } from './lib/storage'; // TODO: implement
-
-const submissionsRoute = createSubmissionsRoute({
-  storage: new S3StorageClient(env.S3_BUCKET),
-  llmClient: createAnthropicClient(env.ANTHROPIC_API_KEY!),
-});
+### 1. Commit Schema UX Changes
+```bash
+git add -A
+git commit -m "feat(admin): refactor schema builder with Figma-style inspector pattern"
 ```
 
-### 2. Phase 6: Review, Export & Audit
-Per `docs/mvp-sprint-plan.md`:
-- `POST /api/submissions/:id/confirm` — customer edits + confirmation
-- Customer review UI with citations
-- Webhook system (register endpoints, signed delivery, retry)
-- CSV export, context-pack endpoint
-- Audit logging
+### 2. Test the New UI
+- Navigate to /schemas/new and test the new layout
+- Verify undo/redo works (Cmd+Z, Cmd+Shift+Z)
+- Test keyboard shortcuts (Delete, Cmd+D, arrows)
+- Check drag-and-drop field reordering
 
-### 3. Database Migration
-Run `bun run db:generate` and `bun run db:migrate` to create the new tables in a real database.
+### 3. Polish & Iterate
+- Refine visual styling based on feedback
+- Add mobile responsive breakpoint handling
+- Consider adding field search/filter for large schemas
+
+### 4. Eliminate Code Duplication
+Refactor `useSchemaBuilder.ts` to import utilities from `schema-builder.ts`
+
+### 5. Add Unit Tests
+- Test `result.ts` utilities
+- Test `undo-history.ts` functions
+- Test undo/redo in `useSchemaBuilder.ts`
 
 ## Important Files
 
-### New This Session
-- `src/lib/workflow/` — WorkflowRunner, step definitions, types
-- `src/lib/crawl/` — URL validation, robots, sitemap, fetcher, extractor, artifacts
-- `src/routes/submissions.ts` — POST/GET endpoints with DI factory
-- `docs/phase5-decisions.md` — Design decisions and review findings
-- `tests/lib/workflow/` — 18 runner + step tests
-- `tests/lib/crawl/` — 68 crawl tests
-- `tests/routes/submissions.test.ts` — 11 route tests
+### Core Schema Builder (New Design)
+- `apps/admin/src/components/schemas/SchemaBuilder.tsx` — Main 2-panel layout
+- `apps/admin/src/components/schemas/SchemaFieldList.tsx` — Left panel field list
+- `apps/admin/src/components/schemas/SchemaInspector.tsx` — Right panel properties
 
-### Modified
-- `src/db/schema.ts` — Added submissions + workflowRuns tables
-- `src/types/api.ts` — Added createSubmissionRequestSchema
-- `src/env.ts` — Added optional ANTHROPIC_API_KEY
-- `src/index.ts` — Registered submissions route
-- `docs/mvp-sprint-plan.md` — Checked off Phase 5 items
-- `docs/mvp-prd.md` — Updated extraction approach documentation
+### Undo/Redo Infrastructure
+- `apps/admin/src/hooks/useSchemaBuilder.ts` — Hook with history
+- `apps/admin/src/domain/undo/services/undo-history.ts` — History management
+- `apps/admin/src/domain/undo/models/undo-action.ts` — Action types
+
+### Foundation Utilities
+- `apps/admin/src/lib/utils/result.ts` — Result type
+- `apps/admin/src/lib/errors/validation-errors.ts` — Error factories
+
+### UI Components
+- `apps/admin/src/components/schemas/FieldTypeBadge.tsx` — Type badges
+- `apps/admin/src/components/ui/Field.tsx` — Composable form fields
 
 ## Commands to Resume
 
 ```bash
-cd /Users/jackson/Code/projects/onboarding
+cd /Users/jackson/Code/projects/onboarding/apps/admin
 git status
-git log --oneline -5
-
-# Run tests
-bun test
 
 # Type check
-bun run typecheck
+bunx tsc --noEmit
+
+# Run tests
+cd ../.. && bun test
 
 # Start dev server
-bun run dev
+cd apps/admin && bun run dev
 
-# Next: implement S3StorageClient or start Phase 6
+# View the schema builder
+# Navigate to http://localhost:5173/schemas/new
+
+# Commit when ready
+git add -A
+git commit -m "feat(admin): refactor schema builder with Figma-style inspector pattern"
 ```

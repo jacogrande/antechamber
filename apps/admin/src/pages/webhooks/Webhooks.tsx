@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { toast } from 'sonner'
 import { Globe, Plus } from 'lucide-react'
 import { useWebhooks, useCreateWebhook } from '@/hooks/useWebhooks'
-import { useCelebration } from '@/hooks/useCelebration'
 import { useDisclosure } from '@/hooks/useDisclosure'
 import { WebhookTable, WebhookCreateModal, WebhookSecretModal } from '@/components/webhooks'
 import { EmptyState, LoadingSpinner, RetryableAlert } from '@/components/common'
@@ -12,7 +11,6 @@ import type { CreateWebhookInput, WebhookWithSecret } from '@/types/webhook'
 export function Webhooks() {
   const { data: webhooks, isLoading, error, refetch, isFetching } = useWebhooks()
   const createWebhook = useCreateWebhook()
-  const { celebrate } = useCelebration()
   const createModal = useDisclosure()
   const secretModal = useDisclosure()
   const [createdWebhook, setCreatedWebhook] = useState<WebhookWithSecret | null>(null)
@@ -21,7 +19,6 @@ export function Webhooks() {
     void createWebhook
       .mutateAsync(input)
       .then((webhook) => {
-        celebrate('subtle')
         setCreatedWebhook(webhook)
         createModal.onClose()
         secretModal.onOpen()

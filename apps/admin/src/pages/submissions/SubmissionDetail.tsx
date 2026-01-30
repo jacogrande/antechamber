@@ -3,7 +3,6 @@ import { toast } from 'sonner'
 import { useParams, Link } from 'react-router-dom'
 import { ChevronRight, ExternalLink, Check, AlertCircle } from 'lucide-react'
 import { useSubmission, useConfirmSubmission } from '@/hooks/useSubmissions'
-import { useCelebration } from '@/hooks/useCelebration'
 import { LoadingSpinner, ConfirmDialog } from '@/components/common'
 import { SubmissionStatusBadge } from '@/components/dashboard/SubmissionStatusBadge'
 import { WorkflowProgress } from '@/components/submissions/WorkflowProgress'
@@ -25,14 +24,12 @@ export function SubmissionDetail() {
   const { data, isLoading, error, refetch } = useSubmission(id)
   const confirmMutation = useConfirmSubmission()
   const [isConfirmOpen, setIsConfirmOpen] = useState(false)
-  const { celebrate } = useCelebration()
 
   const handleConfirm = async () => {
     if (!id) return
 
     try {
       await confirmMutation.mutateAsync(id)
-      celebrate('confetti')
       toast.success('Submission confirmed', {
         description: 'The submission has been confirmed and exported.',
       })
