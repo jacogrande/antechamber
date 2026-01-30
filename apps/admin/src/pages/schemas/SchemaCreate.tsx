@@ -1,10 +1,18 @@
 import { toast } from 'sonner'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { SchemaBuilderProvider } from '@/components/schemas/SchemaBuilderProvider'
 import { SchemaBuilder } from '@/components/schemas/SchemaBuilder'
 import { useCreateSchema } from '@/hooks/useSchemas'
 import { useSchemaBuilderContext } from '@/components/schemas/SchemaBuilderProvider'
 import { useCelebration } from '@/hooks/useCelebration'
+import type { FieldDefinition } from '@/types/schema'
+
+interface TemplateState {
+  template?: {
+    name: string
+    fields: FieldDefinition[]
+  }
+}
 
 function SchemaCreateContent() {
   const navigate = useNavigate()
@@ -45,8 +53,15 @@ function SchemaCreateContent() {
 }
 
 export function SchemaCreate() {
+  const location = useLocation()
+  const locationState = location.state as TemplateState | null
+
+  // If a template was passed via navigation state, use it as initial values
+  const initialName = locationState?.template?.name ?? ''
+  const initialFields = locationState?.template?.fields ?? []
+
   return (
-    <SchemaBuilderProvider>
+    <SchemaBuilderProvider initialName={initialName} initialFields={initialFields}>
       <SchemaCreateContent />
     </SchemaBuilderProvider>
   )
