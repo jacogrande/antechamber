@@ -59,11 +59,53 @@ export function coerceValue(
 }
 
 /**
+ * Check if the snippet provides evidence for the extracted value.
+ * Returns a confidence penalty (0 to 0.5) if evidence is weak.
+ */
+function computeEvidencePenalty(value: unknown, snippet: string): number {
+  const snippetLower = snippet.toLowerCase();
+
+  // For string values, check if the value (or significant part) appears in the snippet
+  if (typeof value === 'string') {
+    const valueLower = value.toLowerCase().trim();
+
+    // Direct match - no penalty
+    if (snippetLower.includes(valueLower)) {
+      return 0;
+    }
+
+    // Check if significant words from the value appear
+    const words = valueLower.split(/\s+/).filter(w => w.length > 3);
+    const matchingWords = words.filter(w => snippetLower.includes(w));
+    if (matchingWords.length > 0 && matchingWords.length >= words.length * 0.5) {
+      return 0.1; // Minor penalty for partial match
+    }
+
+    // Value not found in snippet - significant penalty
+    return 0.4;
+  }
+
+  // For numbers, check if the number appears in the snippet
+  if (typeof value === 'number') {
+    const numStr = String(value);
+    if (snippetLower.includes(numStr)) {
+      return 0;
+    }
+    // Check for written numbers or ranges
+    return 0.3;
+  }
+
+  // For booleans and other types, trust the LLM's assessment
+  return 0;
+}
+
+/**
  * Parse the raw LLM tool_use response into validated PageFieldExtraction[].
  *
  * - Filters out fields not in the schema
  * - Skips entries with empty snippet (citation requirement)
  * - Clamps confidence to [0, 1]
+ * - Penalizes confidence when snippet doesn't evidence the value
  */
 export function parseExtractionResult(
   raw: unknown,
@@ -94,14 +136,27 @@ export function parseExtractionResult(
     if (coerced === undefined) continue;
 
     const rawConfidence = Number(item.confidence);
-    const confidence = Number.isFinite(rawConfidence)
+    let confidence = Number.isFinite(rawConfidence)
       ? Math.max(0, Math.min(1, rawConfidence))
       : 0;
+
+    // Apply penalty if snippet doesn't evidence the value
+    const penalty = computeEvidencePenalty(coerced, snippet);
+    if (penalty > 0) {
+      confidence = Math.max(0, confidence - penalty);
+      console.log(`[extraction] Penalized "${key}" confidence by ${penalty} (snippet doesn't evidence value)`);
+    }
 
     const reason =
       typeof item.reason === 'string' && item.reason.trim()
         ? item.reason.trim()
         : undefined;
+
+    // Skip extractions with low confidence after penalty (must be at least 50%)
+    if (confidence < 0.5) {
+      console.log(`[extraction] Skipping "${key}" - confidence too low after evidence check (${confidence.toFixed(2)})`);
+      continue;
+    }
 
     results.push({ key, value: coerced, confidence, snippet, reason });
   }

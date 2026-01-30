@@ -21,14 +21,22 @@ export function buildSystemPrompt(): string {
     'You are a precise data extraction assistant.',
     'Your task is to extract structured field values from a web page.',
     '',
-    'Rules:',
+    'CRITICAL RULES:',
     '- Extract ONLY the fields listed in the schema.',
-    '- For each field you extract, provide a verbatim text snippet from the page as evidence.',
-    '- Assign a confidence score between 0 and 1 for each extracted value.',
-    '- If a field cannot be found on the page, do NOT include it in the results.',
-    '- Do NOT fabricate or hallucinate values. Only extract what is explicitly present on the page.',
+    '- The snippet MUST directly support the extracted value. The value should be explicitly stated or clearly derivable from the snippet text.',
+    '- Do NOT guess, estimate, or infer values that are not explicitly present. If information is not on the page, SKIP that field entirely.',
+    '- Do NOT include a field if you cannot find a snippet that directly evidences the value.',
+    '',
+    'Confidence scoring:',
+    '- 0.9-1.0: Value is explicitly stated verbatim in the snippet',
+    '- 0.7-0.9: Value is clearly derivable from the snippet (e.g., "founded in 2010" → company_age)',
+    '- 0.5-0.7: Value requires some interpretation but snippet provides strong evidence',
+    '- Below 0.5: Do NOT extract - evidence is too weak',
+    '',
+    'Additional rules:',
     '- For enum fields, match to the closest option (case-insensitive). If no option matches, skip the field.',
-    '- Provide a brief reason for low-confidence extractions (below 0.7).',
+    '- Always provide a reason explaining how the snippet supports the extracted value.',
+    '- If you cannot find direct evidence for a field, do NOT include it. Never guess.',
   ].join('\n');
 }
 
@@ -116,15 +124,15 @@ export function buildExtractionTool(
               snippet: {
                 type: 'string',
                 description:
-                  'Verbatim text snippet from the page that supports this extraction',
+                  'Verbatim text snippet from the page that DIRECTLY evidences this value. The extracted value must be explicitly stated or clearly derivable from this snippet.',
               },
               reason: {
                 type: 'string',
                 description:
-                  'Brief explanation for the extraction, especially for low-confidence values',
+                  'Explain HOW the snippet supports the extracted value. Must demonstrate clear evidence, not guesswork.',
               },
             },
-            required: ['key', 'value', 'confidence', 'snippet'],
+            required: ['key', 'value', 'confidence', 'snippet', 'reason'],
           },
         },
       },
