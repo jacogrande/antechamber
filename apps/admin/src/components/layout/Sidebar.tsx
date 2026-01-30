@@ -1,24 +1,19 @@
-import { Box, VStack, Text, Flex, Icon } from '@chakra-ui/react'
 import { Link, useLocation } from 'react-router-dom'
-import type { IconType } from 'react-icons'
-import {
-  HiOutlineChartBar,
-  HiOutlineClipboardList,
-  HiOutlineLink,
-  HiOutlineCog,
-} from 'react-icons/hi'
+import { BarChart3, ClipboardList, Link2, Settings } from 'lucide-react'
+import { cn } from '@/lib/utils'
+import type { LucideIcon } from 'lucide-react'
 
 interface NavItem {
   label: string
   path: string
-  icon: IconType
+  icon: LucideIcon
 }
 
 const navItems: NavItem[] = [
-  { label: 'Dashboard', path: '/', icon: HiOutlineChartBar },
-  { label: 'Schemas', path: '/schemas', icon: HiOutlineClipboardList },
-  { label: 'Webhooks', path: '/webhooks', icon: HiOutlineLink },
-  { label: 'Settings', path: '/settings', icon: HiOutlineCog },
+  { label: 'Dashboard', path: '/', icon: BarChart3 },
+  { label: 'Schemas', path: '/schemas', icon: ClipboardList },
+  { label: 'Webhooks', path: '/webhooks', icon: Link2 },
+  { label: 'Settings', path: '/settings', icon: Settings },
 ]
 
 interface SidebarProps {
@@ -36,45 +31,50 @@ export function Sidebar({ onClose }: SidebarProps) {
   }
 
   return (
-    <Box
-      as="nav"
-      w="full"
-      h="full"
-      bg="bg.surface"
-      borderRight="1px solid"
-      borderColor="border.default"
-      py={6}
-    >
-      <Flex px={6} mb={8} align="center" gap={2}>
-        <Text fontSize="xl" fontWeight="bold" color="brand.600">
+    <nav className="flex h-full w-full flex-col border-r border-border bg-sidebar py-6">
+      {/* Logo */}
+      <div className="mb-8 flex items-center gap-3 px-6">
+        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
+          <span className="text-lg font-bold text-primary-foreground">O</span>
+        </div>
+        <span className="text-lg font-bold tracking-tight text-foreground">
           Onboarding
-        </Text>
-      </Flex>
+        </span>
+      </div>
 
-      <VStack spacing={1} align="stretch" px={3}>
-        {navItems.map((item) => (
-          <Link key={item.path} to={item.path} onClick={onClose}>
-            <Flex
-              px={3}
-              py={2.5}
-              align="center"
-              gap={3}
-              borderRadius="lg"
-              bg={isActive(item.path) ? 'interactive.muted' : 'transparent'}
-              color={isActive(item.path) ? 'interactive.default' : 'text.muted'}
-              fontWeight={isActive(item.path) ? 'semibold' : 'medium'}
-              _hover={{
-                bg: isActive(item.path) ? 'interactive.muted' : 'bg.subtle',
-                color: isActive(item.path) ? 'interactive.default' : 'text.default',
-              }}
-              transition="all 0.15s"
-            >
-              <Icon as={item.icon} boxSize={5} />
-              <Text fontSize="sm">{item.label}</Text>
-            </Flex>
-          </Link>
-        ))}
-      </VStack>
-    </Box>
+      {/* Navigation */}
+      <div className="flex flex-1 flex-col gap-1 px-3">
+        {navItems.map((item) => {
+          const Icon = item.icon
+          const active = isActive(item.path)
+
+          return (
+            <Link key={item.path} to={item.path} onClick={onClose}>
+              <div
+                className={cn(
+                  'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors',
+                  active
+                    ? 'bg-sidebar-accent text-sidebar-accent-foreground font-semibold'
+                    : 'text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground font-medium'
+                )}
+              >
+                <Icon className="h-5 w-5" />
+                <span>{item.label}</span>
+              </div>
+            </Link>
+          )
+        })}
+      </div>
+
+      {/* Footer */}
+      <div className="px-4 pt-4">
+        <div className="flex items-center gap-2 rounded-lg bg-muted p-3">
+          <div className="h-2 w-2 rounded-full bg-success" />
+          <span className="text-xs text-muted-foreground">
+            All systems operational
+          </span>
+        </div>
+      </div>
+    </nav>
   )
 }
