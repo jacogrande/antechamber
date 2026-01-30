@@ -1,32 +1,17 @@
 import { useState } from 'react'
-import {
-  Box,
-  Heading,
-  Text,
-  Button,
-  HStack,
-  VStack,
-  Card,
-  CardHeader,
-  CardBody,
-  SimpleGrid,
-  Badge,
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  useToast,
-} from '@chakra-ui/react'
+import { toast } from 'sonner'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { HiPlus, HiChevronRight, HiTrash } from 'react-icons/hi'
+import { Plus, ChevronRight, Trash2 } from 'lucide-react'
 import { useSchema, useDeleteSchema } from '@/hooks/useSchemas'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { LoadingSpinner, RetryableAlert, ConfirmDialog } from '@/components/common'
-import { FieldTypeIcon, getFieldTypeLabel } from '@/components/schemas/FieldTypeIcon'
 import { SchemaVersionTimeline } from '@/components/schemas/SchemaVersionTimeline'
+import { FieldsTable } from '@/components/schemas/FieldsTable'
 
 export function SchemaDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const toast = useToast()
   const { data, isLoading, error, refetch, isFetching } = useSchema(id)
   const deleteMutation = useDeleteSchema()
   const [isDeleteOpen, setIsDeleteOpen] = useState(false)
@@ -36,19 +21,13 @@ export function SchemaDetail() {
 
     try {
       await deleteMutation.mutateAsync(id)
-      toast({
-        title: 'Schema deleted',
+      toast.success('Schema deleted', {
         description: 'The schema has been permanently deleted.',
-        status: 'success',
-        duration: 5000,
       })
       navigate('/schemas')
     } catch (err) {
-      toast({
-        title: 'Failed to delete schema',
+      toast.error('Failed to delete schema', {
         description: err instanceof Error ? err.message : 'An error occurred',
-        status: 'error',
-        duration: 5000,
       })
       setIsDeleteOpen(false)
     }
@@ -71,94 +50,61 @@ export function SchemaDetail() {
   const { schema, latestVersion, versions } = data
 
   return (
-    <Box>
-      <Breadcrumb separator={<HiChevronRight />} mb={4} fontSize="sm" color="text.muted">
-        <BreadcrumbItem>
-          <BreadcrumbLink as={Link} to="/schemas">
-            Schemas
-          </BreadcrumbLink>
-        </BreadcrumbItem>
-        <BreadcrumbItem isCurrentPage>
-          <BreadcrumbLink>{schema.name}</BreadcrumbLink>
-        </BreadcrumbItem>
-      </Breadcrumb>
+    <div>
+      <nav className="flex items-center gap-1 text-sm text-muted-foreground mb-4">
+        <Link to="/schemas" className="hover:text-foreground">
+          Schemas
+        </Link>
+        <ChevronRight className="h-4 w-4" />
+        <span className="text-foreground">{schema.name}</span>
+      </nav>
 
-      <HStack justify="space-between" mb={6} wrap="wrap" gap={4}>
-        <Box>
-          <Heading size="lg">{schema.name}</Heading>
+      <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
+        <div>
+          <h1 className="text-2xl font-semibold">{schema.name}</h1>
           {latestVersion && (
-            <Text color="text.muted" mt={1}>
+            <p className="text-muted-foreground mt-1">
               Version {latestVersion.version} - {latestVersion.fields.length} fields
-            </Text>
+            </p>
           )}
-        </Box>
-        <HStack spacing={3}>
+        </div>
+        <div className="flex items-center gap-3">
           <Button
-            leftIcon={<HiTrash />}
             variant="ghost"
-            colorScheme="red"
+            className="text-destructive hover:text-destructive"
             onClick={() => setIsDeleteOpen(true)}
           >
+            <Trash2 className="h-4 w-4 mr-2" />
             Delete
           </Button>
-          <Button
-            leftIcon={<HiPlus />}
-            variant="primary"
-            onClick={() => navigate(`/schemas/${id}/versions/new`)}
-          >
+          <Button onClick={() => navigate(`/schemas/${id}/versions/new`)}>
+            <Plus className="h-4 w-4 mr-2" />
             New Version
           </Button>
-        </HStack>
-      </HStack>
+        </div>
+      </div>
 
-      <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={6}>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Fields Card */}
-        <Card variant="outline">
+        <Card>
           <CardHeader>
-            <Heading size="sm">Fields</Heading>
+            <CardTitle className="text-base">Fields</CardTitle>
           </CardHeader>
-          <CardBody pt={0}>
+          <CardContent>
             {latestVersion ? (
-              <VStack spacing={3} align="stretch">
-                {latestVersion.fields.map((field) => (
-                  <HStack
-                    key={field.key}
-                    p={3}
-                    bg="bg.subtle"
-                    borderRadius="md"
-                    justify="space-between"
-                  >
-                    <HStack spacing={3}>
-                      <FieldTypeIcon type={field.type} color="text.muted" />
-                      <Box>
-                        <Text fontWeight="medium">{field.label}</Text>
-                        <Text fontSize="xs" color="text.muted">
-                          {field.key} - {getFieldTypeLabel(field.type)}
-                        </Text>
-                      </Box>
-                    </HStack>
-                    <HStack spacing={2}>
-                      {field.required && (
-                        <Badge colorScheme="red" variant="subtle" size="sm">
-                          Required
-                        </Badge>
-                      )}
-                    </HStack>
-                  </HStack>
-                ))}
-              </VStack>
+              <FieldsTable fields={latestVersion.fields} />
             ) : (
-              <Text color="text.muted">No fields defined yet.</Text>
+              <p className="text-muted-foreground">No fields defined yet.</p>
             )}
-          </CardBody>
+          </CardContent>
         </Card>
 
         {/* Version History Card */}
-        <Card variant="outline">
+        <Card>
           <CardHeader>
-            <Heading size="sm">Version History</Heading>
+            <CardTitle className="text-base">Version History</CardTitle>
           </CardHeader>
-          <CardBody pt={0}>
+          <CardContent>
             {versions.length > 0 ? (
               <SchemaVersionTimeline
                 schemaId={schema.id}
@@ -166,11 +112,11 @@ export function SchemaDetail() {
                 currentVersion={latestVersion?.version ?? 0}
               />
             ) : (
-              <Text color="text.muted">No versions yet.</Text>
+              <p className="text-muted-foreground">No versions yet.</p>
             )}
-          </CardBody>
+          </CardContent>
         </Card>
-      </SimpleGrid>
+      </div>
 
       <ConfirmDialog
         isOpen={isDeleteOpen}
@@ -182,6 +128,6 @@ export function SchemaDetail() {
         isLoading={deleteMutation.isPending}
         isDestructive
       />
-    </Box>
+    </div>
   )
 }

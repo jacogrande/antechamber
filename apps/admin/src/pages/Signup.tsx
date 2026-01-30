@@ -1,29 +1,16 @@
 import { useState } from 'react'
-import {
-  Button,
-  Card,
-  CardBody,
-  CardHeader,
-  FormControl,
-  FormLabel,
-  FormErrorMessage,
-  Heading,
-  Input,
-  VStack,
-  Text,
-  Link as ChakraLink,
-  Alert,
-  AlertIcon,
-  Center,
-  useToast,
-  Icon,
-} from '@chakra-ui/react'
+import { toast } from 'sonner'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Link } from 'react-router-dom'
-import { HiOutlineMail } from 'react-icons/hi'
+import { Mail, AlertCircle } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Card, CardContent, CardHeader } from '@/components/ui/card'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 
 const signupSchema = z
   .object({
@@ -40,7 +27,6 @@ type SignupForm = z.infer<typeof signupSchema>
 
 export function Signup() {
   const { signUp, resendVerificationEmail } = useAuth()
-  const toast = useToast()
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
   const [registeredEmail, setRegisteredEmail] = useState<string>('')
@@ -71,18 +57,12 @@ export function Signup() {
     try {
       const { error: resendError } = await resendVerificationEmail(registeredEmail)
       if (resendError) {
-        toast({
-          title: 'Failed to resend email',
+        toast.error('Failed to resend email', {
           description: resendError.message,
-          status: 'error',
-          duration: 5000,
         })
       } else {
-        toast({
-          title: 'Email sent',
+        toast.success('Email sent', {
           description: 'A new verification email has been sent.',
-          status: 'success',
-          duration: 5000,
         })
       }
     } finally {
@@ -92,107 +72,104 @@ export function Signup() {
 
   if (success) {
     return (
-      <Center minH="100vh" bg="bg.canvas" p={4}>
-        <Card maxW="md" w="full" variant="outline">
-          <CardBody>
-            <VStack spacing={4} textAlign="center">
-              <Icon as={HiOutlineMail} boxSize={12} color="brand.500" />
-              <Heading size="md">Check your email</Heading>
-              <Text color="text.muted">
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <Card className="max-w-md w-full">
+          <CardContent className="pt-6">
+            <div className="flex flex-col items-center text-center space-y-4">
+              <Mail className="h-12 w-12 text-primary" />
+              <h2 className="text-xl font-semibold">Check your email</h2>
+              <p className="text-muted-foreground">
                 We've sent you a verification link. Please check your email to
                 complete your registration.
-              </Text>
+              </p>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => void handleResendEmail()}
                 isLoading={isResending}
-                loadingText="Sending..."
               >
                 Didn't receive it? Resend email
               </Button>
-              <ChakraLink as={Link} to="/login" color="brand.600">
+              <Link to="/login" className="text-primary hover:underline">
                 Back to login
-              </ChakraLink>
-            </VStack>
-          </CardBody>
+              </Link>
+            </div>
+          </CardContent>
         </Card>
-      </Center>
+      </div>
     )
   }
 
   return (
-    <Center minH="100vh" bg="bg.canvas" p={4}>
-      <Card maxW="md" w="full" variant="outline">
-        <CardHeader textAlign="center" pb={0}>
-          <Heading size="lg" color="brand.600">
-            Onboarding
-          </Heading>
-          <Text mt={2} color="text.muted">
-            Create your account
-          </Text>
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <Card className="max-w-md w-full">
+        <CardHeader className="text-center pb-0">
+          <h1 className="text-2xl font-semibold text-primary">Onboarding</h1>
+          <p className="mt-2 text-muted-foreground">Create your account</p>
         </CardHeader>
-        <CardBody>
+        <CardContent className="pt-6">
           <form onSubmit={(e) => void handleSubmit(onSubmit)(e)}>
-            <VStack spacing={4}>
+            <div className="space-y-4">
               {error && (
-                <Alert status="error" borderRadius="lg">
-                  <AlertIcon />
-                  {error}
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{error}</AlertDescription>
                 </Alert>
               )}
 
-              <FormControl isInvalid={!!errors.email}>
-                <FormLabel>Email</FormLabel>
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
                 <Input
+                  id="email"
                   type="email"
                   placeholder="you@example.com"
                   {...register('email')}
                 />
-                <FormErrorMessage>{errors.email?.message}</FormErrorMessage>
-              </FormControl>
+                {errors.email && (
+                  <p className="text-sm text-destructive">{errors.email.message}</p>
+                )}
+              </div>
 
-              <FormControl isInvalid={!!errors.password}>
-                <FormLabel>Password</FormLabel>
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
                 <Input
+                  id="password"
                   type="password"
                   placeholder="Create a password"
                   {...register('password')}
                 />
-                <FormErrorMessage>{errors.password?.message}</FormErrorMessage>
-              </FormControl>
+                {errors.password && (
+                  <p className="text-sm text-destructive">{errors.password.message}</p>
+                )}
+              </div>
 
-              <FormControl isInvalid={!!errors.confirmPassword}>
-                <FormLabel>Confirm Password</FormLabel>
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword">Confirm Password</Label>
                 <Input
+                  id="confirmPassword"
                   type="password"
                   placeholder="Confirm your password"
                   {...register('confirmPassword')}
                 />
-                <FormErrorMessage>
-                  {errors.confirmPassword?.message}
-                </FormErrorMessage>
-              </FormControl>
+                {errors.confirmPassword && (
+                  <p className="text-sm text-destructive">{errors.confirmPassword.message}</p>
+                )}
+              </div>
 
-              <Button
-                type="submit"
-                variant="primary"
-                w="full"
-                isLoading={isSubmitting}
-              >
+              <Button type="submit" className="w-full" isLoading={isSubmitting}>
                 Create account
               </Button>
 
-              <Text fontSize="sm" color="text.muted">
+              <p className="text-sm text-muted-foreground text-center">
                 Already have an account?{' '}
-                <ChakraLink as={Link} to="/login" color="brand.600">
+                <Link to="/login" className="text-primary hover:underline">
                   Sign in
-                </ChakraLink>
-              </Text>
-            </VStack>
+                </Link>
+              </p>
+            </div>
           </form>
-        </CardBody>
+        </CardContent>
       </Card>
-    </Center>
+    </div>
   )
 }

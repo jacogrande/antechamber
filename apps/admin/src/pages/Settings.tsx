@@ -1,27 +1,16 @@
 import { useState } from 'react'
-import {
-  Box,
-  Heading,
-  Card,
-  CardBody,
-  CardHeader,
-  VStack,
-  FormControl,
-  FormLabel,
-  FormErrorMessage,
-  Text,
-  Input,
-  Button,
-  ButtonGroup,
-  useColorMode,
-  useToast,
-  Skeleton,
-} from '@chakra-ui/react'
+import { toast } from 'sonner'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import { useTheme } from 'next-themes'
 import { useAuth } from '@/hooks/useAuth'
 import { useTenant } from '@/hooks/useTenant'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Skeleton } from '@/components/ui/skeleton'
 
 function formatDate(dateString: string): string {
   return new Date(dateString).toLocaleDateString('en-US', {
@@ -36,94 +25,86 @@ function OrganizationSection() {
 
   if (isLoading) {
     return (
-      <Card variant="outline">
+      <Card>
         <CardHeader>
-          <Heading size="sm">Organization</Heading>
+          <CardTitle className="text-base">Organization</CardTitle>
         </CardHeader>
-        <CardBody pt={0}>
-          <VStack spacing={4} align="stretch">
-            <Box>
-              <Skeleton h={4} w="60px" mb={2} />
-              <Skeleton h={5} w="150px" />
-            </Box>
-            <Box>
-              <Skeleton h={4} w="40px" mb={2} />
-              <Skeleton h={5} w="120px" />
-            </Box>
-            <Box>
-              <Skeleton h={4} w="70px" mb={2} />
-              <Skeleton h={5} w="140px" />
-            </Box>
-          </VStack>
-        </CardBody>
+        <CardContent className="space-y-4">
+          <div>
+            <Skeleton className="h-4 w-[60px] mb-2" />
+            <Skeleton className="h-5 w-[150px]" />
+          </div>
+          <div>
+            <Skeleton className="h-4 w-[40px] mb-2" />
+            <Skeleton className="h-5 w-[120px]" />
+          </div>
+          <div>
+            <Skeleton className="h-4 w-[70px] mb-2" />
+            <Skeleton className="h-5 w-[140px]" />
+          </div>
+        </CardContent>
       </Card>
     )
   }
 
   return (
-    <Card variant="outline">
+    <Card>
       <CardHeader>
-        <Heading size="sm">Organization</Heading>
+        <CardTitle className="text-base">Organization</CardTitle>
       </CardHeader>
-      <CardBody pt={0}>
-        <VStack spacing={4} align="stretch">
-          <FormControl>
-            <FormLabel color="text.muted" fontSize="sm">
-              Name
-            </FormLabel>
-            <Text fontWeight="medium">{tenant?.name ?? '-'}</Text>
-          </FormControl>
-          <FormControl>
-            <FormLabel color="text.muted" fontSize="sm">
-              Slug
-            </FormLabel>
-            <Text fontFamily="mono" color="text.subtle">
-              {tenant?.slug ?? '-'}
-            </Text>
-          </FormControl>
-          <FormControl>
-            <FormLabel color="text.muted" fontSize="sm">
-              Created
-            </FormLabel>
-            <Text color="text.subtle">
-              {tenant?.createdAt ? formatDate(tenant.createdAt) : '-'}
-            </Text>
-          </FormControl>
-        </VStack>
-      </CardBody>
+      <CardContent className="space-y-4">
+        <div>
+          <Label className="text-muted-foreground text-sm">Name</Label>
+          <p className="font-medium">{tenant?.name ?? '-'}</p>
+        </div>
+        <div>
+          <Label className="text-muted-foreground text-sm">Slug</Label>
+          <p className="font-mono text-muted-foreground">{tenant?.slug ?? '-'}</p>
+        </div>
+        <div>
+          <Label className="text-muted-foreground text-sm">Created</Label>
+          <p className="text-muted-foreground">
+            {tenant?.createdAt ? formatDate(tenant.createdAt) : '-'}
+          </p>
+        </div>
+      </CardContent>
     </Card>
   )
 }
 
 function AppearanceSection() {
-  const { colorMode, toggleColorMode } = useColorMode()
+  const { theme, setTheme } = useTheme()
 
   return (
-    <Card variant="outline">
+    <Card>
       <CardHeader>
-        <Heading size="sm">Appearance</Heading>
+        <CardTitle className="text-base">Appearance</CardTitle>
       </CardHeader>
-      <CardBody pt={0}>
-        <FormControl>
-          <FormLabel color="text.muted" fontSize="sm">
+      <CardContent>
+        <div>
+          <Label className="text-muted-foreground text-sm mb-2 block">
             Color Mode
-          </FormLabel>
-          <ButtonGroup size="sm" isAttached variant="outline">
+          </Label>
+          <div className="flex">
             <Button
-              onClick={() => colorMode !== 'light' && toggleColorMode()}
-              variant={colorMode === 'light' ? 'solid' : 'outline'}
+              variant={theme === 'light' ? 'default' : 'outline'}
+              size="sm"
+              className="rounded-r-none"
+              onClick={() => setTheme('light')}
             >
               Light
             </Button>
             <Button
-              onClick={() => colorMode !== 'dark' && toggleColorMode()}
-              variant={colorMode === 'dark' ? 'solid' : 'outline'}
+              variant={theme === 'dark' ? 'default' : 'outline'}
+              size="sm"
+              className="rounded-l-none border-l-0"
+              onClick={() => setTheme('dark')}
             >
               Dark
             </Button>
-          </ButtonGroup>
-        </FormControl>
-      </CardBody>
+          </div>
+        </div>
+      </CardContent>
     </Card>
   )
 }
@@ -132,20 +113,16 @@ function ProfileSection() {
   const { user } = useAuth()
 
   return (
-    <Card variant="outline">
+    <Card>
       <CardHeader>
-        <Heading size="sm">Profile</Heading>
+        <CardTitle className="text-base">Profile</CardTitle>
       </CardHeader>
-      <CardBody pt={0}>
-        <VStack spacing={4} align="stretch">
-          <FormControl>
-            <FormLabel color="text.muted" fontSize="sm">
-              Email
-            </FormLabel>
-            <Text>{user?.email ?? '-'}</Text>
-          </FormControl>
-        </VStack>
-      </CardBody>
+      <CardContent>
+        <div>
+          <Label className="text-muted-foreground text-sm">Email</Label>
+          <p>{user?.email ?? '-'}</p>
+        </div>
+      </CardContent>
     </Card>
   )
 }
@@ -164,7 +141,6 @@ type PasswordFormData = z.infer<typeof passwordSchema>
 
 function PasswordSection() {
   const { changePassword } = useAuth()
-  const toast = useToast()
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const {
@@ -181,18 +157,12 @@ function PasswordSection() {
     try {
       const { error } = await changePassword(data.newPassword)
       if (error) {
-        toast({
-          title: 'Failed to change password',
+        toast.error('Failed to change password', {
           description: error.message,
-          status: 'error',
-          duration: 5000,
         })
       } else {
-        toast({
-          title: 'Password changed',
+        toast.success('Password changed', {
           description: 'Your password has been updated successfully.',
-          status: 'success',
-          duration: 5000,
         })
         reset()
       }
@@ -202,66 +172,64 @@ function PasswordSection() {
   }
 
   return (
-    <Card variant="outline">
+    <Card>
       <CardHeader>
-        <Heading size="sm">Change Password</Heading>
+        <CardTitle className="text-base">Change Password</CardTitle>
       </CardHeader>
-      <CardBody pt={0}>
+      <CardContent>
         <form onSubmit={(e) => void handleSubmit(onSubmit)(e)}>
-          <VStack spacing={4} align="stretch">
-            <FormControl isInvalid={!!errors.newPassword}>
-              <FormLabel color="text.muted" fontSize="sm">
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="newPassword" className="text-muted-foreground text-sm">
                 New Password
-              </FormLabel>
+              </Label>
               <Input
+                id="newPassword"
                 type="password"
                 placeholder="Enter new password"
                 {...register('newPassword')}
               />
-              <FormErrorMessage>{errors.newPassword?.message}</FormErrorMessage>
-            </FormControl>
+              {errors.newPassword && (
+                <p className="text-sm text-destructive">{errors.newPassword.message}</p>
+              )}
+            </div>
 
-            <FormControl isInvalid={!!errors.confirmPassword}>
-              <FormLabel color="text.muted" fontSize="sm">
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword" className="text-muted-foreground text-sm">
                 Confirm Password
-              </FormLabel>
+              </Label>
               <Input
+                id="confirmPassword"
                 type="password"
                 placeholder="Confirm new password"
                 {...register('confirmPassword')}
               />
-              <FormErrorMessage>{errors.confirmPassword?.message}</FormErrorMessage>
-            </FormControl>
+              {errors.confirmPassword && (
+                <p className="text-sm text-destructive">{errors.confirmPassword.message}</p>
+              )}
+            </div>
 
-            <Button
-              type="submit"
-              variant="primary"
-              size="sm"
-              alignSelf="flex-start"
-              isLoading={isSubmitting}
-            >
+            <Button type="submit" size="sm" isLoading={isSubmitting}>
               Update Password
             </Button>
-          </VStack>
+          </div>
         </form>
-      </CardBody>
+      </CardContent>
     </Card>
   )
 }
 
 export function Settings() {
   return (
-    <Box>
-      <Heading size="lg" mb={8}>
-        Settings
-      </Heading>
+    <div>
+      <h1 className="text-2xl font-semibold mb-8">Settings</h1>
 
-      <VStack spacing={6} align="stretch" maxW="2xl">
+      <div className="space-y-6 max-w-2xl">
         <OrganizationSection />
         <AppearanceSection />
         <ProfileSection />
         <PasswordSection />
-      </VStack>
-    </Box>
+      </div>
+    </div>
   )
 }

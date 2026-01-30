@@ -1,37 +1,25 @@
 import { useState } from 'react'
-import {
-  Button,
-  Card,
-  CardBody,
-  CardHeader,
-  FormControl,
-  FormLabel,
-  FormErrorMessage,
-  Heading,
-  Input,
-  VStack,
-  Text,
-  Link as ChakraLink,
-  Alert,
-  AlertIcon,
-  Center,
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
-  ModalBody,
-  ModalFooter,
-  RadioGroup,
-  Radio,
-  Stack,
-  useDisclosure,
-  useToast,
-} from '@chakra-ui/react'
+import { toast } from 'sonner'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth, type TenantInfo } from '@/hooks/useAuth'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Card, CardContent, CardHeader } from '@/components/ui/card'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { AlertCircle } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 const loginSchema = z.object({
   email: z.string().email('Please enter a valid email'),
@@ -44,11 +32,10 @@ export function Login() {
   const navigate = useNavigate()
   const location = useLocation()
   const { signIn, selectTenant } = useAuth()
-  const toast = useToast()
   const [error, setError] = useState<string | null>(null)
   const [tenants, setTenants] = useState<TenantInfo[]>([])
   const [selectedTenantId, setSelectedTenantId] = useState<string>('')
-  const { isOpen, onOpen, onClose } = useDisclosure()
+  const [isModalOpen, setIsModalOpen] = useState(false)
 
   const from = (location.state as { from?: Location })?.from?.pathname || '/'
 
@@ -69,17 +56,13 @@ export function Login() {
       // Multiple tenants - show picker
       setTenants(result.tenants)
       setSelectedTenantId(result.tenants[0].id)
-      onOpen()
+      setIsModalOpen(true)
     } else if (result.tenants && result.tenants.length === 0) {
       // No tenants - redirect to organization setup
       navigate('/setup/org', { replace: true })
     } else {
       // Single tenant - already selected by useAuth
-      toast({
-        title: 'Welcome back!',
-        status: 'success',
-        duration: 3000,
-      })
+      toast.success('Welcome back!')
       navigate(from, { replace: true })
     }
   }
@@ -87,107 +70,139 @@ export function Login() {
   const handleTenantSelect = () => {
     if (selectedTenantId) {
       selectTenant(selectedTenantId)
-      onClose()
-      toast({
-        title: 'Welcome back!',
-        status: 'success',
-        duration: 3000,
-      })
+      setIsModalOpen(false)
+      toast.success('Welcome back!')
       navigate(from, { replace: true })
     }
   }
 
   return (
     <>
-      <Center minH="100vh" bg="bg.canvas" p={4}>
-        <Card maxW="md" w="full" variant="outline">
-          <CardHeader textAlign="center" pb={0}>
-            <Heading size="lg" color="brand.600">
-              Onboarding
-            </Heading>
-            <Text mt={2} color="text.muted">
-              Sign in to your account
-            </Text>
+      <div className="min-h-screen bg-background flex items-center justify-center p-4 relative overflow-hidden">
+        {/* Background decoration */}
+        <div className="absolute -top-1/4 -right-1/4 w-[600px] h-[600px] rounded-full bg-primary/5 blur-[100px] pointer-events-none" />
+        <div className="absolute -bottom-1/4 -left-1/4 w-[500px] h-[500px] rounded-full bg-green-500/5 blur-[100px] pointer-events-none" />
+
+        <Card className="max-w-[400px] w-full rounded-2xl">
+          <CardHeader className="text-center pt-8 pb-2 px-8">
+            <div className="flex justify-center mb-4">
+              <div className="w-12 h-12 rounded-lg bg-primary flex items-center justify-center">
+                <span className="text-xl font-bold text-primary-foreground">O</span>
+              </div>
+            </div>
+            <h1 className="text-2xl font-semibold tracking-tight">Welcome back</h1>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Sign in to your account to continue
+            </p>
           </CardHeader>
-          <CardBody>
+          <CardContent className="pt-4 pb-8 px-8">
             <form onSubmit={(e) => void handleSubmit(onSubmit)(e)}>
-              <VStack spacing={4}>
+              <div className="space-y-5">
                 {error && (
-                  <Alert status="error" borderRadius="lg">
-                    <AlertIcon />
-                    {error}
+                  <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>{error}</AlertDescription>
                   </Alert>
                 )}
 
-                <FormControl isInvalid={!!errors.email}>
-                  <FormLabel>Email</FormLabel>
+                <div className="space-y-2">
+                  <Label htmlFor="email" className="text-muted-foreground">
+                    Email
+                  </Label>
                   <Input
+                    id="email"
                     type="email"
                     placeholder="you@example.com"
+                    className="h-11"
                     {...register('email')}
                   />
-                  <FormErrorMessage>{errors.email?.message}</FormErrorMessage>
-                </FormControl>
+                  {errors.email && (
+                    <p className="text-sm text-destructive">{errors.email.message}</p>
+                  )}
+                </div>
 
-                <FormControl isInvalid={!!errors.password}>
-                  <FormLabel>Password</FormLabel>
+                <div className="space-y-2">
+                  <Label htmlFor="password" className="text-muted-foreground">
+                    Password
+                  </Label>
                   <Input
+                    id="password"
                     type="password"
                     placeholder="Enter your password"
+                    className="h-11"
                     {...register('password')}
                   />
-                  <FormErrorMessage>{errors.password?.message}</FormErrorMessage>
-                </FormControl>
+                  {errors.password && (
+                    <p className="text-sm text-destructive">{errors.password.message}</p>
+                  )}
+                </div>
 
                 <Button
                   type="submit"
-                  variant="primary"
-                  w="full"
+                  className="w-full h-11 mt-2"
                   isLoading={isSubmitting}
                 >
                   Sign in
                 </Button>
 
-                <Text fontSize="sm" color="text.muted">
+                <p className="text-sm text-muted-foreground text-center">
                   Don't have an account?{' '}
-                  <ChakraLink as={Link} to="/signup" color="brand.600">
+                  <Link
+                    to="/signup"
+                    className="text-primary font-medium hover:underline"
+                  >
                     Sign up
-                  </ChakraLink>
-                </Text>
-              </VStack>
+                  </Link>
+                </p>
+              </div>
             </form>
-          </CardBody>
+          </CardContent>
         </Card>
-      </Center>
+      </div>
 
-      <Modal isOpen={isOpen} onClose={onClose} isCentered>
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>Select Organization</ModalHeader>
-          <ModalBody>
-            <Text mb={4} color="text.muted">
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Select Organization</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="mb-4 text-sm text-muted-foreground">
               You have access to multiple organizations. Please select one to continue.
-            </Text>
-            <RadioGroup value={selectedTenantId} onChange={setSelectedTenantId}>
-              <Stack spacing={3}>
+            </p>
+            <RadioGroup value={selectedTenantId} onValueChange={setSelectedTenantId}>
+              <div className="space-y-3">
                 {tenants.map((tenant) => (
-                  <Radio key={tenant.id} value={tenant.id}>
-                    <Text fontWeight="medium">{tenant.name}</Text>
-                    <Text fontSize="sm" color="text.muted">
-                      {tenant.role}
-                    </Text>
-                  </Radio>
+                  <div
+                    key={tenant.id}
+                    className={cn(
+                      'p-3 rounded-lg border cursor-pointer transition-all',
+                      selectedTenantId === tenant.id
+                        ? 'border-primary bg-primary/5'
+                        : 'border-border hover:border-primary'
+                    )}
+                    onClick={() => setSelectedTenantId(tenant.id)}
+                  >
+                    <div className="flex items-center gap-3">
+                      <RadioGroupItem value={tenant.id} id={tenant.id} />
+                      <div>
+                        <Label htmlFor={tenant.id} className="font-medium text-sm cursor-pointer">
+                          {tenant.name}
+                        </Label>
+                        <p className="text-xs text-muted-foreground">{tenant.role}</p>
+                      </div>
+                    </div>
+                  </div>
                 ))}
-              </Stack>
+              </div>
             </RadioGroup>
-          </ModalBody>
-          <ModalFooter>
-            <Button variant="primary" onClick={handleTenantSelect}>
+          </div>
+          <DialogFooter>
+            <Button onClick={handleTenantSelect} className="w-full">
               Continue
             </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   )
 }

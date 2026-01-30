@@ -1,28 +1,17 @@
 import { useState, useMemo } from 'react'
-import {
-  Button,
-  Card,
-  CardBody,
-  CardHeader,
-  FormControl,
-  FormLabel,
-  FormErrorMessage,
-  FormHelperText,
-  Heading,
-  Input,
-  VStack,
-  Text,
-  Alert,
-  AlertIcon,
-  Center,
-  useToast,
-} from '@chakra-ui/react'
+import { toast } from 'sonner'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useNavigate, useLocation } from 'react-router-dom'
+import { AlertCircle } from 'lucide-react'
 import { useCreateTenant } from '@/hooks/useTenantSetup'
 import { ApiError } from '@/lib/api/client'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Card, CardContent, CardHeader } from '@/components/ui/card'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 
 const orgSetupSchema = z.object({
   name: z.string().min(1, 'Organization name is required').max(100),
@@ -46,7 +35,6 @@ function generateSlug(name: string): string {
 export function OrganizationSetup() {
   const navigate = useNavigate()
   const location = useLocation()
-  const toast = useToast()
   const createTenant = useCreateTenant()
   const [error, setError] = useState<string | null>(null)
 
@@ -72,11 +60,8 @@ export function OrganizationSetup() {
     setError(null)
     try {
       await createTenant.mutateAsync({ name: data.name })
-      toast({
-        title: 'Organization created',
+      toast.success('Organization created', {
         description: `Welcome to ${data.name}!`,
-        status: 'success',
-        duration: 3000,
       })
       navigate(from, { replace: true })
     } catch (err) {
@@ -93,52 +78,54 @@ export function OrganizationSetup() {
   }
 
   return (
-    <Center minH="100vh" bg="bg.canvas" p={4}>
-      <Card maxW="md" w="full" variant="outline">
-        <CardHeader textAlign="center" pb={0}>
-          <Heading size="lg" color="brand.600">
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <Card className="max-w-md w-full">
+        <CardHeader className="text-center pb-0">
+          <h1 className="text-2xl font-semibold text-primary">
             Create your organization
-          </Heading>
-          <Text mt={2} color="text.muted">
+          </h1>
+          <p className="mt-2 text-muted-foreground">
             Set up your organization to get started
-          </Text>
+          </p>
         </CardHeader>
-        <CardBody>
+        <CardContent className="pt-6">
           <form onSubmit={(e) => void handleSubmit(onSubmit)(e)}>
-            <VStack spacing={4}>
+            <div className="space-y-4">
               {error && (
-                <Alert status="error" borderRadius="lg">
-                  <AlertIcon />
-                  {error}
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{error}</AlertDescription>
                 </Alert>
               )}
 
-              <FormControl isInvalid={!!errors.name}>
-                <FormLabel>Organization name</FormLabel>
+              <div className="space-y-2">
+                <Label htmlFor="name">Organization name</Label>
                 <Input
+                  id="name"
                   placeholder="Acme Inc."
                   {...register('name')}
                 />
-                <FormErrorMessage>{errors.name?.message}</FormErrorMessage>
-                {slugPreview && !errors.name && (
-                  <FormHelperText>
-                    Your URL: <Text as="span" fontFamily="mono">{slugPreview}</Text>
-                  </FormHelperText>
+                {errors.name && (
+                  <p className="text-sm text-destructive">{errors.name.message}</p>
                 )}
-              </FormControl>
+                {slugPreview && !errors.name && (
+                  <p className="text-sm text-muted-foreground">
+                    Your URL: <span className="font-mono">{slugPreview}</span>
+                  </p>
+                )}
+              </div>
 
               <Button
                 type="submit"
-                variant="primary"
-                w="full"
+                className="w-full"
                 isLoading={isSubmitting || createTenant.isPending}
               >
                 Create organization
               </Button>
-            </VStack>
+            </div>
           </form>
-        </CardBody>
+        </CardContent>
       </Card>
-    </Center>
+    </div>
   )
 }

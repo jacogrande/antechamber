@@ -1,7 +1,7 @@
-import { Box, Heading, Button, Flex } from '@chakra-ui/react'
 import { useNavigate } from 'react-router-dom'
-import { HiOutlineDocumentText, HiPlus } from 'react-icons/hi'
+import { FileText, Plus } from 'lucide-react'
 import { useSchemas } from '@/hooks/useSchemas'
+import { Button } from '@/components/ui/button'
 import { SchemaList } from '@/components/schemas/SchemaList'
 import { EmptyState, LoadingSpinner, RetryableAlert } from '@/components/common'
 
@@ -26,31 +26,28 @@ export function Schemas() {
   const hasSchemas = schemas && schemas.length > 0
 
   return (
-    <Box>
-      <Flex justify="space-between" align="center" mb={6}>
-        <Heading size="lg">Schemas</Heading>
+    <div>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-semibold">Schemas</h1>
         {hasSchemas && (
-          <Button
-            leftIcon={<HiPlus />}
-            variant="primary"
-            onClick={() => navigate('/schemas/new')}
-          >
+          <Button onClick={() => navigate('/schemas/new')}>
+            <Plus className="h-4 w-4 mr-2" />
             New Schema
           </Button>
         )}
-      </Flex>
+      </div>
 
       {hasSchemas ? (
         <SchemaList schemas={schemas} />
       ) : (
         <EmptyState
-          icon={HiOutlineDocumentText}
+          icon={FileText}
           title="No schemas yet"
           description="Create your first schema to define the fields you want to extract from websites."
           actionLabel="Create Schema"
           onAction={() => navigate('/schemas/new')}
         />
       )}
-    </Box>
+    </div>
   )
 }

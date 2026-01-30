@@ -1,56 +1,41 @@
 import { useState } from 'react'
-import {
-  Box,
-  Heading,
-  Button,
-  Flex,
-  useDisclosure,
-  useToast,
-} from '@chakra-ui/react'
-import { HiOutlineGlobeAlt, HiPlus } from 'react-icons/hi'
+import { toast } from 'sonner'
+import { Globe, Plus } from 'lucide-react'
 import { useWebhooks, useCreateWebhook } from '@/hooks/useWebhooks'
+import { useCelebration } from '@/hooks/useCelebration'
+import { useDisclosure } from '@/hooks/useDisclosure'
 import { WebhookTable, WebhookCreateModal, WebhookSecretModal } from '@/components/webhooks'
 import { EmptyState, LoadingSpinner, RetryableAlert } from '@/components/common'
+import { Button } from '@/components/ui/button'
 import type { CreateWebhookInput, WebhookWithSecret } from '@/types/webhook'
 
 export function Webhooks() {
   const { data: webhooks, isLoading, error, refetch, isFetching } = useWebhooks()
   const createWebhook = useCreateWebhook()
-  const toast = useToast()
-  const {
-    isOpen: isCreateOpen,
-    onOpen: onCreateOpen,
-    onClose: onCreateClose,
-  } = useDisclosure()
-  const {
-    isOpen: isSecretOpen,
-    onOpen: onSecretOpen,
-    onClose: onSecretClose,
-  } = useDisclosure()
+  const { celebrate } = useCelebration()
+  const createModal = useDisclosure()
+  const secretModal = useDisclosure()
   const [createdWebhook, setCreatedWebhook] = useState<WebhookWithSecret | null>(null)
 
   const handleCreateSubmit = (input: CreateWebhookInput) => {
     void createWebhook
       .mutateAsync(input)
       .then((webhook) => {
+        celebrate('subtle')
         setCreatedWebhook(webhook)
-        onCreateClose()
-        onSecretOpen()
+        createModal.onClose()
+        secretModal.onOpen()
       })
       .catch((err: Error) => {
-        toast({
-          title: 'Failed to create webhook',
+        toast.error('Failed to create webhook', {
           description: err.message || 'Please try again.',
-          status: 'error',
-          duration: 5000,
-          isClosable: true,
         })
       })
   }
 
   const handleSecretClose = () => {
     setCreatedWebhook(null)
-    onSecretClose()
+    secretModal.onClose()
   }
 
   if (isLoading) {
@@ -70,42 +55,43 @@ export function Webhooks() {
   const hasWebhooks = webhooks && webhooks.length > 0
 
   return (
-    <Box>
-      <Flex justify="space-between" align="center" mb={6}>
-        <Heading size="lg">Webhooks</Heading>
+    <div>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-semibold">Webhooks</h1>
         {hasWebhooks && (
-          <Button leftIcon={<HiPlus />} variant="primary" onClick={onCreateOpen}>
+          <Button onClick={createModal.onOpen}>
+            <Plus className="h-4 w-4 mr-2" />
             Add Webhook
           </Button>
         )}
-      </Flex>
+      </div>
 
       {hasWebhooks ? (
         <WebhookTable webhooks={webhooks} />
       ) : (
         <EmptyState
-          icon={HiOutlineGlobeAlt}
+          icon={Globe}
           title="No webhooks yet"
           description="Register a webhook to receive notifications when submissions are confirmed."
           actionLabel="Add Webhook"
-          onAction={onCreateOpen}
+          onAction={createModal.onOpen}
         />
       )}
 
       <WebhookCreateModal
-        isOpen={isCreateOpen}
-        onClose={onCreateClose}
+        isOpen={createModal.isOpen}
+        onClose={createModal.onClose}
         onSubmit={handleCreateSubmit}
         isLoading={createWebhook.isPending}
       />
 
       {createdWebhook && (
         <WebhookSecretModal
-          isOpen={isSecretOpen}
+          isOpen={secretModal.isOpen}
           onClose={handleSecretClose}
           secret={createdWebhook.secret}
         />
       )}
-    </Box>
+    </div>
   )
 }

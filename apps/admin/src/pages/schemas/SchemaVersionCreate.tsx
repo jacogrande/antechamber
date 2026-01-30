@@ -1,14 +1,15 @@
-import { Box, useToast, Alert, AlertIcon } from '@chakra-ui/react'
+import { toast } from 'sonner'
 import { useParams, useNavigate } from 'react-router-dom'
+import { AlertCircle } from 'lucide-react'
 import { SchemaBuilderProvider } from '@/components/schemas/SchemaBuilderProvider'
 import { SchemaBuilder } from '@/components/schemas/SchemaBuilder'
 import { useSchemaBuilderContext } from '@/components/schemas/SchemaBuilderProvider'
 import { useSchema, useCreateSchemaVersion } from '@/hooks/useSchemas'
 import { LoadingSpinner } from '@/components/common'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 
 function SchemaVersionCreateContent({ schemaId }: { schemaId: string }) {
   const navigate = useNavigate()
-  const toast = useToast()
   const { state } = useSchemaBuilderContext()
   const createVersion = useCreateSchemaVersion(schemaId)
 
@@ -17,20 +18,11 @@ function SchemaVersionCreateContent({ schemaId }: { schemaId: string }) {
       await createVersion.mutateAsync({
         fields: state.fields,
       })
-      toast({
-        title: 'Version created',
-        status: 'success',
-        duration: 3000,
-        isClosable: true,
-      })
+      toast.success('Version created')
       navigate(`/schemas/${schemaId}`)
     } catch (error) {
-      toast({
-        title: 'Failed to create version',
+      toast.error('Failed to create version', {
         description: error instanceof Error ? error.message : 'Unknown error',
-        status: 'error',
-        duration: 5000,
-        isClosable: true,
       })
     }
   }
@@ -40,14 +32,14 @@ function SchemaVersionCreateContent({ schemaId }: { schemaId: string }) {
   }
 
   return (
-    <Box h="calc(100vh - 64px)" mx={-6} mb={-6}>
+    <div className="h-[calc(100vh-64px)] -mx-6 -mb-6">
       <SchemaBuilder
         onSave={handleSave}
         onCancel={handleCancel}
         isSaving={createVersion.isPending}
         saveLabel="Create Version"
       />
-    </Box>
+    </div>
   )
 }
 
@@ -61,9 +53,11 @@ export function SchemaVersionCreate() {
 
   if (error || !data) {
     return (
-      <Alert status="error">
-        <AlertIcon />
-        Failed to load schema. Please try again.
+      <Alert variant="destructive">
+        <AlertCircle className="h-4 w-4" />
+        <AlertDescription>
+          Failed to load schema. Please try again.
+        </AlertDescription>
       </Alert>
     )
   }

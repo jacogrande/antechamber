@@ -1,63 +1,45 @@
-import {
-  Box,
-  Heading,
-  Text,
-  Button,
-  HStack,
-  VStack,
-  Card,
-  CardHeader,
-  CardBody,
-  SimpleGrid,
-  Alert,
-  AlertIcon,
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  Table,
-  Thead,
-  Tbody,
-  Tr,
-  Th,
-  Td,
-  Link,
-  Icon,
-  useToast,
-} from '@chakra-ui/react'
-import { useParams, Link as RouterLink } from 'react-router-dom'
-import { HiChevronRight, HiOutlineExternalLink, HiCheck } from 'react-icons/hi'
+import { useState } from 'react'
+import { toast } from 'sonner'
+import { useParams, Link } from 'react-router-dom'
+import { ChevronRight, ExternalLink, Check, AlertCircle } from 'lucide-react'
 import { useSubmission, useConfirmSubmission } from '@/hooks/useSubmissions'
+import { useCelebration } from '@/hooks/useCelebration'
 import { LoadingSpinner, ConfirmDialog } from '@/components/common'
 import { SubmissionStatusBadge } from '@/components/dashboard/SubmissionStatusBadge'
 import { WorkflowProgress } from '@/components/submissions/WorkflowProgress'
 import { ExtractedFieldsTable } from '@/components/submissions/ExtractedFieldsTable'
-import { useState } from 'react'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 
 export function SubmissionDetail() {
   const { id } = useParams<{ id: string }>()
-  const toast = useToast()
   const { data, isLoading, error, refetch } = useSubmission(id)
   const confirmMutation = useConfirmSubmission()
   const [isConfirmOpen, setIsConfirmOpen] = useState(false)
+  const { celebrate } = useCelebration()
 
   const handleConfirm = async () => {
     if (!id) return
 
     try {
       await confirmMutation.mutateAsync(id)
-      toast({
-        title: 'Submission confirmed',
+      celebrate('confetti')
+      toast.success('Submission confirmed', {
         description: 'The submission has been confirmed and exported.',
-        status: 'success',
-        duration: 5000,
       })
       setIsConfirmOpen(false)
     } catch (err) {
-      toast({
-        title: 'Failed to confirm submission',
+      toast.error('Failed to confirm submission', {
         description: err instanceof Error ? err.message : 'An error occurred',
-        status: 'error',
-        duration: 5000,
       })
     }
   }
@@ -68,12 +50,14 @@ export function SubmissionDetail() {
 
   if (error || !data) {
     return (
-      <Alert status="error">
-        <AlertIcon />
-        Failed to load submission.{' '}
-        <Button variant="link" onClick={() => refetch()} ml={2}>
-          Retry
-        </Button>
+      <Alert variant="destructive">
+        <AlertCircle className="h-4 w-4" />
+        <AlertDescription className="flex items-center gap-2">
+          Failed to load submission.
+          <Button variant="link" size="sm" onClick={() => refetch()} className="h-auto p-0">
+            Retry
+          </Button>
+        </AlertDescription>
       </Alert>
     )
   }
@@ -81,171 +65,154 @@ export function SubmissionDetail() {
   const { submission } = data
 
   return (
-    <Box>
-      <Breadcrumb
-        separator={<HiChevronRight />}
-        mb={4}
-        fontSize="sm"
-        color="text.muted"
-      >
-        <BreadcrumbItem>
-          <BreadcrumbLink as={RouterLink} to="/">
-            Dashboard
-          </BreadcrumbLink>
-        </BreadcrumbItem>
-        <BreadcrumbItem isCurrentPage>
-          <BreadcrumbLink>Submission</BreadcrumbLink>
-        </BreadcrumbItem>
-      </Breadcrumb>
+    <div>
+      {/* Breadcrumb */}
+      <nav className="flex items-center gap-1 text-sm text-muted-foreground mb-4">
+        <Link to="/" className="hover:text-foreground">
+          Dashboard
+        </Link>
+        <ChevronRight className="h-4 w-4" />
+        <span className="text-foreground">Submission</span>
+      </nav>
 
-      <HStack justify="space-between" mb={6} wrap="wrap" gap={4}>
-        <Box>
-          <HStack spacing={3} mb={1}>
-            <Heading size="lg">Submission</Heading>
+      {/* Header */}
+      <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
+        <div>
+          <div className="flex items-center gap-3 mb-1">
+            <h1 className="text-2xl font-semibold">Submission</h1>
             <SubmissionStatusBadge status={submission.status} />
-          </HStack>
-          <Text color="text.muted">
-            <Link href={submission.websiteUrl} isExternal color="brand.500">
+          </div>
+          <p className="text-muted-foreground">
+            <a
+              href={submission.websiteUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary hover:underline inline-flex items-center gap-1"
+            >
               {submission.websiteUrl}
-              <Icon as={HiOutlineExternalLink} ml={1} />
-            </Link>
-          </Text>
-          <Text color="text.subtle" fontSize="sm" mt={1}>
+              <ExternalLink className="h-3.5 w-3.5" />
+            </a>
+          </p>
+          <p className="text-sm text-muted-foreground mt-1">
             Created {new Date(submission.createdAt).toLocaleString()}
             {submission.schemaName && ` • Schema: ${submission.schemaName}`}
-          </Text>
-        </Box>
+          </p>
+        </div>
         {submission.status === 'draft' && (
-          <Button
-            leftIcon={<HiCheck />}
-            variant="primary"
-            onClick={() => setIsConfirmOpen(true)}
-            isLoading={confirmMutation.isPending}
-          >
-            Confirm Submission
+          <Button onClick={() => setIsConfirmOpen(true)} disabled={confirmMutation.isPending}>
+            <Check className="h-4 w-4 mr-2" />
+            {confirmMutation.isPending ? 'Confirming...' : 'Confirm Submission'}
           </Button>
         )}
-      </HStack>
+      </div>
 
-      <SimpleGrid columns={{ base: 1, xl: 3 }} spacing={6}>
+      {/* Main Content Grid */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         {/* Workflow Progress */}
-        <Card variant="outline">
+        <Card>
           <CardHeader>
-            <Heading size="sm">Workflow Progress</Heading>
+            <CardTitle className="text-base">Workflow Progress</CardTitle>
           </CardHeader>
-          <CardBody pt={0}>
+          <CardContent>
             <WorkflowProgress steps={submission.workflowSteps} />
-          </CardBody>
+          </CardContent>
         </Card>
 
         {/* Extracted Fields */}
-        <Card variant="outline" gridColumn={{ xl: 'span 2' }}>
+        <Card className="xl:col-span-2">
           <CardHeader>
-            <HStack justify="space-between">
-              <Heading size="sm">Extracted Fields</Heading>
-              <Text fontSize="sm" color="text.muted">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base">Extracted Fields</CardTitle>
+              <span className="text-sm text-muted-foreground">
                 {submission.extractedFields.filter((f) => f.status === 'found').length} /{' '}
                 {submission.extractedFields.length} found
-              </Text>
-            </HStack>
+              </span>
+            </div>
           </CardHeader>
-          <CardBody pt={0}>
+          <CardContent>
             <ExtractedFieldsTable fields={submission.extractedFields} />
-          </CardBody>
+          </CardContent>
         </Card>
-      </SimpleGrid>
+      </div>
 
       {/* Crawled Pages */}
-      <Card variant="outline" mt={6}>
+      <Card className="mt-6">
         <CardHeader>
-          <Heading size="sm">Crawled Pages</Heading>
+          <CardTitle className="text-base">Crawled Pages</CardTitle>
         </CardHeader>
-        <CardBody pt={0}>
+        <CardContent>
           {submission.artifacts.length === 0 ? (
-            <Text color="text.muted" fontSize="sm">
-              No pages crawled yet.
-            </Text>
+            <p className="text-sm text-muted-foreground">No pages crawled yet.</p>
           ) : (
-            <Box overflowX="auto">
-              <Table size="sm">
-                <Thead>
-                  <Tr>
-                    <Th>URL</Th>
-                    <Th>Page Type</Th>
-                    <Th>Status</Th>
-                    <Th>Fetched</Th>
-                  </Tr>
-                </Thead>
-                <Tbody>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>URL</TableHead>
+                    <TableHead>Page Type</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Fetched</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {submission.artifacts.map((artifact, idx) => (
-                    <Tr key={idx}>
-                      <Td>
-                        <Link
+                    <TableRow key={idx}>
+                      <TableCell>
+                        <a
                           href={artifact.url}
-                          isExternal
-                          color="brand.500"
-                          maxW="400px"
-                          display="block"
-                          isTruncated
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary hover:underline inline-flex items-center gap-1 max-w-[400px] truncate"
                         >
                           {artifact.url}
-                          <Icon as={HiOutlineExternalLink} ml={1} />
-                        </Link>
-                      </Td>
-                      <Td>
-                        <Text textTransform="capitalize">
-                          {artifact.pageType.replace(/_/g, ' ')}
-                        </Text>
-                      </Td>
-                      <Td>
-                        <Text
-                          color={
+                          <ExternalLink className="h-3.5 w-3.5 flex-shrink-0" />
+                        </a>
+                      </TableCell>
+                      <TableCell className="capitalize">
+                        {artifact.pageType.replace(/_/g, ' ')}
+                      </TableCell>
+                      <TableCell>
+                        <span
+                          className={
                             artifact.statusCode >= 200 && artifact.statusCode < 300
-                              ? 'green.500'
-                              : 'red.500'
+                              ? 'text-green-600 dark:text-green-400'
+                              : 'text-red-600 dark:text-red-400'
                           }
                         >
                           {artifact.statusCode}
-                        </Text>
-                      </Td>
-                      <Td>
-                        <Text color="text.subtle" fontSize="sm">
-                          {new Date(artifact.fetchedAt).toLocaleString()}
-                        </Text>
-                      </Td>
-                    </Tr>
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {new Date(artifact.fetchedAt).toLocaleString()}
+                      </TableCell>
+                    </TableRow>
                   ))}
-                </Tbody>
+                </TableBody>
               </Table>
-            </Box>
+            </div>
           )}
-        </CardBody>
+        </CardContent>
       </Card>
 
-      {/* Confirmation details */}
+      {/* Confirmation Details */}
       {submission.status === 'confirmed' && submission.confirmedAt && (
-        <Card variant="outline" mt={6}>
+        <Card className="mt-6">
           <CardHeader>
-            <Heading size="sm">Confirmation Details</Heading>
+            <CardTitle className="text-base">Confirmation Details</CardTitle>
           </CardHeader>
-          <CardBody pt={0}>
-            <VStack align="start" spacing={1}>
-              <Text>
-                <Text as="span" fontWeight="medium">
-                  Confirmed at:
-                </Text>{' '}
+          <CardContent>
+            <div className="space-y-1">
+              <p>
+                <span className="font-medium">Confirmed at:</span>{' '}
                 {new Date(submission.confirmedAt).toLocaleString()}
-              </Text>
+              </p>
               {submission.confirmedBy && (
-                <Text>
-                  <Text as="span" fontWeight="medium">
-                    Confirmed by:
-                  </Text>{' '}
-                  {submission.confirmedBy}
-                </Text>
+                <p>
+                  <span className="font-medium">Confirmed by:</span> {submission.confirmedBy}
+                </p>
               )}
-            </VStack>
-          </CardBody>
+            </div>
+          </CardContent>
         </Card>
       )}
 
@@ -258,6 +225,6 @@ export function SubmissionDetail() {
         confirmLabel="Confirm"
         isLoading={confirmMutation.isPending}
       />
-    </Box>
+    </div>
   )
 }
