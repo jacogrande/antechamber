@@ -1,23 +1,14 @@
 import { useState } from 'react'
+import { MoreVertical, Trash2, ChevronDown, ChevronRight } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import {
-  Tr,
-  Td,
-  Text,
-  HStack,
-  IconButton,
-  Menu,
-  MenuButton,
-  MenuList,
-  MenuItem,
-  Collapse,
-  Box,
-} from '@chakra-ui/react'
-import {
-  HiOutlineDotsVertical,
-  HiOutlineTrash,
-  HiOutlineChevronDown,
-  HiOutlineChevronRight,
-} from 'react-icons/hi'
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { TableCell, TableRow } from '@/components/ui/table'
+import { cn } from '@/lib/utils'
 import type { Webhook } from '@/types/webhook'
 import { WebhookStatusBadge } from './WebhookStatusBadge'
 import { WebhookEventBadge } from './WebhookEventBadge'
@@ -38,81 +29,91 @@ export function WebhookRow({ webhook, onDelete }: WebhookRowProps) {
 
   return (
     <>
-      <Tr
-        _hover={{ bg: 'bg.subtle' }}
-        cursor="pointer"
+      <TableRow
+        className="cursor-pointer hover:bg-muted/50"
         onClick={() => setIsExpanded(!isExpanded)}
       >
-        <Td>
-          <HStack spacing={2}>
-            <IconButton
-              aria-label={isExpanded ? 'Collapse' : 'Expand'}
-              icon={isExpanded ? <HiOutlineChevronDown /> : <HiOutlineChevronRight />}
-              size="xs"
+        <TableCell>
+          <div className="flex items-center gap-2">
+            <Button
               variant="ghost"
+              size="icon"
+              className="h-6 w-6"
               onClick={(e) => {
                 e.stopPropagation()
                 setIsExpanded(!isExpanded)
               }}
-            />
-            <Text
-              fontFamily="mono"
-              fontSize="sm"
+              aria-label={isExpanded ? 'Collapse' : 'Expand'}
+            >
+              {isExpanded ? (
+                <ChevronDown className="h-4 w-4" />
+              ) : (
+                <ChevronRight className="h-4 w-4" />
+              )}
+            </Button>
+            <span
+              className="font-mono text-sm truncate max-w-[300px]"
               title={webhook.endpointUrl}
-              isTruncated
-              maxW="300px"
             >
               {truncateUrl(webhook.endpointUrl)}
-            </Text>
-          </HStack>
-        </Td>
-        <Td>
-          <HStack spacing={1} flexWrap="wrap">
+            </span>
+          </div>
+        </TableCell>
+        <TableCell>
+          <div className="flex flex-wrap gap-1">
             {webhook.events.map((event) => (
               <WebhookEventBadge key={event} event={event} />
             ))}
-          </HStack>
-        </Td>
-        <Td>
+          </div>
+        </TableCell>
+        <TableCell>
           <WebhookStatusBadge isActive={webhook.isActive} />
-        </Td>
-        <Td>
-          <Menu>
-            <MenuButton
-              as={IconButton}
-              aria-label="Actions"
-              icon={<HiOutlineDotsVertical />}
-              size="sm"
-              variant="ghost"
-              onClick={(e) => e.stopPropagation()}
-            />
-            <MenuList>
-              <MenuItem
-                icon={<HiOutlineTrash />}
-                color="status.error"
+        </TableCell>
+        <TableCell>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={(e) => e.stopPropagation()}
+                aria-label="Actions"
+              >
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                className="text-destructive focus:text-destructive"
                 onClick={(e) => {
                   e.stopPropagation()
                   onDelete(webhook)
                 }}
               >
+                <Trash2 className="h-4 w-4 mr-2" />
                 Delete
-              </MenuItem>
-            </MenuList>
-          </Menu>
-        </Td>
-      </Tr>
-      <Tr>
-        <Td colSpan={4} p={0} borderBottom={isExpanded ? undefined : 'none'}>
-          <Collapse in={isExpanded} animateOpacity>
-            <Box bg="bg.subtle" p={4} borderTop="1px solid" borderColor="border.default">
-              <Text fontWeight="medium" mb={3} fontSize="sm">
-                Delivery History
-              </Text>
-              <WebhookDeliveryLog webhookId={webhook.id} />
-            </Box>
-          </Collapse>
-        </Td>
-      </Tr>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </TableCell>
+      </TableRow>
+      <TableRow className={cn(!isExpanded && 'border-b-0')}>
+        <TableCell colSpan={4} className="p-0">
+          <div
+            className={cn(
+              'grid transition-all duration-200 ease-out',
+              isExpanded ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
+            )}
+          >
+            <div className="overflow-hidden">
+              <div className="bg-muted p-4 border-t">
+                <p className="font-medium text-sm mb-3">Delivery History</p>
+                <WebhookDeliveryLog webhookId={webhook.id} />
+              </div>
+            </div>
+          </div>
+        </TableCell>
+      </TableRow>
     </>
   )
 }

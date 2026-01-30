@@ -1,17 +1,14 @@
+import { Loader2, AlertCircle } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import {
   Table,
-  Thead,
-  Tbody,
-  Tr,
-  Th,
-  Td,
-  Badge,
-  Text,
-  Box,
-  Spinner,
-  Alert,
-  AlertIcon,
-} from '@chakra-ui/react'
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import { useWebhookDeliveries } from '@/hooks/useWebhooks'
 import type { WebhookDelivery } from '@/types/webhook'
 
@@ -23,10 +20,10 @@ interface WebhookDeliveryLogProps {
 const MAX_DELIVERY_ATTEMPTS = 5
 
 function DeliveryStatusBadge({ status }: { status: WebhookDelivery['status'] }) {
-  const variants: Record<WebhookDelivery['status'], string> = {
-    success: 'success',
-    failed: 'error',
-    pending: 'warning',
+  const variants: Record<WebhookDelivery['status'], 'default' | 'destructive' | 'secondary'> = {
+    success: 'default',
+    failed: 'destructive',
+    pending: 'secondary',
   }
 
   return (
@@ -52,73 +49,70 @@ export function WebhookDeliveryLog({ webhookId }: WebhookDeliveryLogProps) {
 
   if (isLoading) {
     return (
-      <Box py={4} textAlign="center">
-        <Spinner size="sm" color="brand.600" />
-      </Box>
+      <div className="py-4 text-center">
+        <Loader2 className="h-4 w-4 animate-spin mx-auto text-primary" />
+      </div>
     )
   }
 
   if (error) {
     return (
-      <Alert status="error" size="sm">
-        <AlertIcon />
-        Failed to load delivery history
+      <Alert variant="destructive">
+        <AlertCircle className="h-4 w-4" />
+        <AlertDescription>Failed to load delivery history</AlertDescription>
       </Alert>
     )
   }
 
   if (!deliveries || deliveries.length === 0) {
     return (
-      <Box py={4} textAlign="center">
-        <Text color="text.muted" fontSize="sm">
-          No deliveries yet
-        </Text>
-      </Box>
+      <div className="py-4 text-center">
+        <p className="text-muted-foreground text-sm">No deliveries yet</p>
+      </div>
     )
   }
 
   return (
-    <Box overflowX="auto">
-      <Table size="sm" variant="simple">
-        <Thead>
-          <Tr>
-            <Th>Timestamp</Th>
-            <Th>Status</Th>
-            <Th>Attempts</Th>
-            <Th>Error</Th>
-          </Tr>
-        </Thead>
-        <Tbody>
+    <div className="overflow-x-auto">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Timestamp</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Attempts</TableHead>
+            <TableHead>Error</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {deliveries.map((delivery) => (
-            <Tr key={delivery.id}>
-              <Td>
-                <Text fontSize="sm" fontFamily="mono">
+            <TableRow key={delivery.id}>
+              <TableCell>
+                <span className="text-sm font-mono">
                   {formatDate(delivery.createdAt)}
-                </Text>
-              </Td>
-              <Td>
+                </span>
+              </TableCell>
+              <TableCell>
                 <DeliveryStatusBadge status={delivery.status} />
-              </Td>
-              <Td>
-                <Text fontSize="sm">
+              </TableCell>
+              <TableCell>
+                <span className="text-sm">
                   {delivery.attempts}/{delivery.status === 'pending' ? '?' : MAX_DELIVERY_ATTEMPTS}
-                </Text>
-              </Td>
-              <Td>
-                <Text
-                  fontSize="sm"
-                  color={delivery.lastError ? 'status.error' : 'text.muted'}
-                  maxW="200px"
-                  isTruncated
+                </span>
+              </TableCell>
+              <TableCell>
+                <span
+                  className={`text-sm truncate max-w-[200px] block ${
+                    delivery.lastError ? 'text-destructive' : 'text-muted-foreground'
+                  }`}
                   title={delivery.lastError ?? undefined}
                 >
                   {delivery.lastError ?? '-'}
-                </Text>
-              </Td>
-            </Tr>
+                </span>
+              </TableCell>
+            </TableRow>
           ))}
-        </Tbody>
+        </TableBody>
       </Table>
-    </Box>
+    </div>
   )
 }

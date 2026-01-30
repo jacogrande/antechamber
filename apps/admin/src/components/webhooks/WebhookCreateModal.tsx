@@ -1,22 +1,16 @@
 import { useState } from 'react'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Label } from '@/components/ui/label'
 import {
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
-  ModalFooter,
-  ModalBody,
-  ModalCloseButton,
-  Button,
-  FormControl,
-  FormLabel,
-  FormHelperText,
-  FormErrorMessage,
-  Input,
-  Checkbox,
-  VStack,
-  Text,
-} from '@chakra-ui/react'
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import type { CreateWebhookInput, WebhookEventType } from '@/types/webhook'
 
 interface WebhookCreateModalProps {
@@ -87,69 +81,80 @@ export function WebhookCreateModal({
   }
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} size="md">
-      <ModalOverlay />
-      <ModalContent>
-        <ModalHeader>Add Webhook</ModalHeader>
-        <ModalCloseButton />
-        <ModalBody>
-          <VStack spacing={5} align="stretch">
-            <FormControl isRequired isInvalid={!!urlError}>
-              <FormLabel>Endpoint URL</FormLabel>
-              <Input
-                placeholder="https://"
-                value={endpointUrl}
-                onChange={(e) => {
-                  setEndpointUrl(e.target.value)
-                  if (urlError) validateUrl(e.target.value)
-                }}
-                onBlur={() => endpointUrl && validateUrl(endpointUrl)}
-              />
-              {urlError ? (
-                <FormErrorMessage>{urlError}</FormErrorMessage>
-              ) : (
-                <FormHelperText>Must be HTTPS</FormHelperText>
-              )}
-            </FormControl>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Add Webhook</DialogTitle>
+          <DialogDescription>
+            Configure a webhook endpoint to receive event notifications.
+          </DialogDescription>
+        </DialogHeader>
 
-            <FormControl isRequired>
-              <FormLabel>Events</FormLabel>
-              <VStack align="stretch" spacing={2}>
-                {AVAILABLE_EVENTS.map((event) => (
+        <div className="flex flex-col gap-5 py-4">
+          <div className="space-y-2">
+            <Label htmlFor="endpoint-url">
+              Endpoint URL <span className="text-destructive">*</span>
+            </Label>
+            <Input
+              id="endpoint-url"
+              placeholder="https://"
+              value={endpointUrl}
+              onChange={(e) => {
+                setEndpointUrl(e.target.value)
+                if (urlError) validateUrl(e.target.value)
+              }}
+              onBlur={() => endpointUrl && validateUrl(endpointUrl)}
+              className={urlError ? 'border-destructive' : ''}
+            />
+            {urlError ? (
+              <p className="text-sm text-destructive">{urlError}</p>
+            ) : (
+              <p className="text-sm text-muted-foreground">Must be HTTPS</p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label>
+              Events <span className="text-destructive">*</span>
+            </Label>
+            <div className="flex flex-col gap-2">
+              {AVAILABLE_EVENTS.map((event) => (
+                <div key={event.value} className="flex items-start gap-3">
                   <Checkbox
-                    key={event.value}
-                    isChecked={selectedEvents.includes(event.value)}
-                    onChange={() => toggleEvent(event.value)}
-                  >
-                    <VStack align="start" spacing={0}>
-                      <Text fontFamily="mono" fontSize="sm">
-                        {event.label}
-                      </Text>
-                      <Text fontSize="xs" color="text.muted">
-                        {event.description}
-                      </Text>
-                    </VStack>
-                  </Checkbox>
-                ))}
-              </VStack>
-            </FormControl>
-          </VStack>
-        </ModalBody>
+                    id={`event-${event.value}`}
+                    checked={selectedEvents.includes(event.value)}
+                    onCheckedChange={() => toggleEvent(event.value)}
+                  />
+                  <div className="flex flex-col">
+                    <Label
+                      htmlFor={`event-${event.value}`}
+                      className="font-mono text-sm cursor-pointer"
+                    >
+                      {event.label}
+                    </Label>
+                    <span className="text-xs text-muted-foreground">
+                      {event.description}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
 
-        <ModalFooter gap={3}>
+        <DialogFooter className="gap-2">
           <Button variant="ghost" onClick={handleClose}>
             Cancel
           </Button>
           <Button
-            variant="primary"
             onClick={handleSubmit}
+            disabled={!endpointUrl || selectedEvents.length === 0 || isLoading}
             isLoading={isLoading}
-            isDisabled={!endpointUrl || selectedEvents.length === 0}
           >
             Add Webhook
           </Button>
-        </ModalFooter>
-      </ModalContent>
-    </Modal>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }

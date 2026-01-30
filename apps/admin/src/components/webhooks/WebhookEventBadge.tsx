@@ -1,4 +1,4 @@
-import { Badge } from '@chakra-ui/react'
+import { Badge } from '@/components/ui/badge'
 import type { WebhookEventType } from '@/types/webhook'
 
 interface WebhookEventBadgeProps {
@@ -11,7 +11,7 @@ const eventLabels: Record<WebhookEventType, string> = {
 
 export function WebhookEventBadge({ event }: WebhookEventBadgeProps) {
   return (
-    <Badge variant="outline" fontFamily="mono" fontSize="xs">
+    <Badge variant="outline" className="font-mono text-xs">
       {eventLabels[event] ?? event}
     </Badge>
   )

@@ -1,21 +1,13 @@
+import { AlertTriangle } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import {
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
-  ModalFooter,
-  ModalBody,
-  ModalCloseButton,
-  Button,
-  VStack,
-  Text,
-  HStack,
-  Box,
-  Code,
-  Alert,
-  AlertIcon,
-} from '@chakra-ui/react'
-import { HiOutlineExclamation } from 'react-icons/hi'
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { CopyButton } from '@/components/common'
 
 interface WebhookSecretModalProps {
@@ -26,51 +18,37 @@ interface WebhookSecretModalProps {
 
 export function WebhookSecretModal({ isOpen, onClose, secret }: WebhookSecretModalProps) {
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="md" closeOnOverlayClick={false}>
-      <ModalOverlay />
-      <ModalContent>
-        <ModalHeader>Webhook Created</ModalHeader>
-        <ModalCloseButton />
-        <ModalBody>
-          <VStack spacing={4} align="stretch">
-            <Alert status="warning" variant="left-accent">
-              <AlertIcon as={HiOutlineExclamation} />
-              <Text fontSize="sm">
-                <strong>Save your signing secret</strong>
-                <br />
-                This secret will only be shown once. Use it to verify webhook signatures.
-              </Text>
-            </Alert>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent onPointerDownOutside={(e) => e.preventDefault()}>
+        <DialogHeader>
+          <DialogTitle>Webhook Created</DialogTitle>
+        </DialogHeader>
 
-            <Box
-              bg="bg.subtle"
-              borderRadius="md"
-              p={3}
-              border="1px solid"
-              borderColor="border.default"
-            >
-              <HStack justify="space-between" align="center">
-                <Code
-                  bg="transparent"
-                  fontSize="sm"
-                  fontFamily="mono"
-                  wordBreak="break-all"
-                  flex={1}
-                >
-                  {secret}
-                </Code>
-                <CopyButton value={secret} label="Copy secret" />
-              </HStack>
-            </Box>
-          </VStack>
-        </ModalBody>
+        <div className="flex flex-col gap-4 py-4">
+          <Alert variant="destructive" className="border-amber-500 bg-amber-50 dark:bg-amber-950/30">
+            <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-500" />
+            <AlertTitle className="text-amber-800 dark:text-amber-400">
+              Save your signing secret
+            </AlertTitle>
+            <AlertDescription className="text-amber-700 dark:text-amber-300">
+              This secret will only be shown once. Use it to verify webhook signatures.
+            </AlertDescription>
+          </Alert>
 
-        <ModalFooter>
-          <Button variant="primary" onClick={onClose}>
-            Done
-          </Button>
-        </ModalFooter>
-      </ModalContent>
-    </Modal>
+          <div className="bg-muted rounded-md p-3 border">
+            <div className="flex items-center justify-between gap-2">
+              <code className="text-sm font-mono break-all flex-1">
+                {secret}
+              </code>
+              <CopyButton value={secret} label="Copy secret" />
+            </div>
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button onClick={onClose}>Done</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }
