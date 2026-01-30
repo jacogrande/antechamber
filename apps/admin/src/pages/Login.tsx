@@ -87,7 +87,7 @@ export function Login() {
           <CardHeader className="text-center pt-8 pb-2 px-8">
             <div className="flex justify-center mb-4">
               <div className="w-12 h-12 rounded-lg bg-primary flex items-center justify-center">
-                <span className="text-xl font-bold text-primary-foreground">T</span>
+                <span className="text-xl font-bold text-primary-foreground">A</span>
               </div>
             </div>
             <h1 className="text-2xl font-semibold tracking-tight">Welcome back</h1>
