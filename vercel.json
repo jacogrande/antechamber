@@ -1,11 +1,11 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "bunVersion": "1.x",
   "buildCommand": "bun run build:all",
   "installCommand": "bun install",
   "outputDirectory": "apps/admin/dist",
   "functions": {
     "api/**/*.ts": {
-      "runtime": "@vercel/bun@1",
       "maxDuration": 300
     }
   },
