@@ -1,19 +1,19 @@
+import { ExternalLink, Info } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
 import {
   Table,
-  Thead,
-  Tbody,
-  Tr,
-  Th,
-  Td,
-  Text,
-  Badge,
-  Box,
-  HStack,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import {
   Tooltip,
-  Icon,
-  Link,
-} from '@chakra-ui/react'
-import { HiOutlineExternalLink, HiOutlineInformationCircle } from 'react-icons/hi'
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
+import { FieldTypeIcon } from '@/components/schemas/FieldTypeIcon'
 import type { ExtractedFieldValue, ExtractedFieldStatus } from '@/types/submission'
 
 interface ExtractedFieldsTableProps {
@@ -22,11 +22,11 @@ interface ExtractedFieldsTableProps {
 
 const statusConfig: Record<
   ExtractedFieldStatus,
-  { label: string; variant: string }
+  { label: string; variant: 'default' | 'secondary' | 'destructive' }
 > = {
-  found: { label: 'Found', variant: 'success' },
-  not_found: { label: 'Not Found', variant: 'subtle' },
-  unknown: { label: 'Unknown', variant: 'warning' },
+  found: { label: 'Found', variant: 'default' },
+  not_found: { label: 'Not Found', variant: 'secondary' },
+  unknown: { label: 'Unknown', variant: 'destructive' },
 }
 
 function formatValue(value: unknown): string {
@@ -48,95 +48,95 @@ function formatValue(value: unknown): string {
 export function ExtractedFieldsTable({ fields }: ExtractedFieldsTableProps) {
   if (fields.length === 0) {
     return (
-      <Text color="text.muted" fontSize="sm">
+      <p className="text-muted-foreground text-sm">
         No fields extracted yet.
-      </Text>
+      </p>
     )
   }
 
   return (
-    <Box overflowX="auto">
-      <Table size="sm">
-        <Thead>
-          <Tr>
-            <Th>Field</Th>
-            <Th>Value</Th>
-            <Th>Status</Th>
-            <Th>Citations</Th>
-          </Tr>
-        </Thead>
-        <Tbody>
+    <div className="overflow-x-auto">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Field</TableHead>
+            <TableHead>Value</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Citations</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {fields.map((field) => {
             const status = statusConfig[field.status]
             return (
-              <Tr key={field.fieldKey}>
-                <Td>
-                  <Box>
-                    <Text fontWeight="medium">{field.fieldLabel}</Text>
-                    <Text fontSize="xs" color="text.muted" fontFamily="mono">
-                      {field.fieldKey}
-                    </Text>
-                  </Box>
-                </Td>
-                <Td>
-                  <Text
-                    maxW="300px"
-                    isTruncated
+              <TableRow key={field.fieldKey}>
+                <TableCell>
+                  <div className="flex items-center gap-3">
+                    {field.fieldType && (
+                      <FieldTypeIcon
+                        type={field.fieldType}
+                        className="h-4 w-4"
+                      />
+                    )}
+                    <div>
+                      <p className="font-medium">{field.fieldLabel}</p>
+                      <p className="text-xs text-muted-foreground font-mono">
+                        {field.fieldKey}
+                      </p>
+                    </div>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <span
+                    className="max-w-[300px] truncate block"
                     title={formatValue(field.value)}
                   >
                     {formatValue(field.value)}
-                  </Text>
-                </Td>
-                <Td>
+                  </span>
+                </TableCell>
+                <TableCell>
                   <Badge variant={status.variant}>{status.label}</Badge>
-                </Td>
-                <Td>
+                </TableCell>
+                <TableCell>
                   {field.citations.length > 0 ? (
-                    <HStack spacing={1}>
+                    <div className="flex items-center gap-1">
                       {field.citations.map((citation, idx) => (
-                        <Tooltip
-                          key={idx}
-                          label={
-                            <Box>
-                              <Text fontWeight="bold" mb={1}>
-                                {citation.sourceUrl}
-                              </Text>
-                              <Text fontSize="sm">"{citation.snippetText}"</Text>
-                              <Text fontSize="xs" mt={1}>
-                                Confidence: {Math.round(citation.confidence * 100)}%
-                              </Text>
-                            </Box>
-                          }
-                          placement="top"
-                          hasArrow
-                        >
-                          <Link
-                            href={citation.sourceUrl}
-                            isExternal
-                            color="brand.500"
-                            display="inline-flex"
-                            alignItems="center"
-                          >
-                            <Icon as={HiOutlineExternalLink} boxSize={4} />
-                          </Link>
+                        <Tooltip key={idx}>
+                          <TooltipTrigger asChild>
+                            <a
+                              href={citation.sourceUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center text-primary hover:text-primary/80"
+                            >
+                              <ExternalLink className="h-4 w-4" />
+                            </a>
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-[300px]">
+                            <p className="font-bold mb-1">{citation.sourceUrl}</p>
+                            <p className="text-sm">"{citation.snippetText}"</p>
+                            <p className="text-xs mt-1">
+                              Confidence: {Math.round(citation.confidence * 100)}%
+                            </p>
+                          </TooltipContent>
                         </Tooltip>
                       ))}
-                      <Text fontSize="xs" color="text.muted">
+                      <span className="text-xs text-muted-foreground">
                         ({field.citations.length})
-                      </Text>
-                    </HStack>
+                      </span>
+                    </div>
                   ) : (
-                    <HStack spacing={1} color="text.subtle">
-                      <Icon as={HiOutlineInformationCircle} boxSize={4} />
-                      <Text fontSize="xs">None</Text>
-                    </HStack>
+                    <div className="flex items-center gap-1 text-muted-foreground">
+                      <Info className="h-4 w-4" />
+                      <span className="text-xs">None</span>
+                    </div>
                   )}
-                </Td>
-              </Tr>
+                </TableCell>
+              </TableRow>
             )
           })}
-        </Tbody>
+        </TableBody>
       </Table>
-    </Box>
+    </div>
   )
 }

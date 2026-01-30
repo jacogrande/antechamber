@@ -1,28 +1,27 @@
 import { useState } from 'react'
-import {
-  Modal,
-  ModalOverlay,
-  ModalContent,
-  ModalHeader,
-  ModalBody,
-  ModalFooter,
-  ModalCloseButton,
-  Button,
-  FormControl,
-  FormLabel,
-  FormErrorMessage,
-  Input,
-  Select,
-  VStack,
-  Alert,
-  AlertIcon,
-  CloseButton,
-  HStack,
-  useToast,
-} from '@chakra-ui/react'
+import { toast } from 'sonner'
+import { X, AlertCircle } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { useSchemas } from '@/hooks/useSchemas'
 import { useCreateSubmission } from '@/hooks/useSubmissions'
 import type { Schema } from '@/types/schema'
@@ -40,7 +39,6 @@ interface CreateSubmissionModalProps {
 }
 
 export function CreateSubmissionModal({ isOpen, onClose }: CreateSubmissionModalProps) {
-  const toast = useToast()
   const { data: schemasData, isLoading: schemasLoading } = useSchemas()
   const createMutation = useCreateSubmission()
   const [error, setError] = useState<string | null>(null)
@@ -49,6 +47,8 @@ export function CreateSubmissionModal({ isOpen, onClose }: CreateSubmissionModal
     register,
     handleSubmit,
     reset,
+    setValue,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<CreateSubmissionForm>({
     resolver: zodResolver(createSubmissionSchema),
@@ -58,16 +58,14 @@ export function CreateSubmissionModal({ isOpen, onClose }: CreateSubmissionModal
     },
   })
 
+  const schemaId = watch('schemaId')
+
   const onSubmit = async (data: CreateSubmissionForm) => {
     setError(null)
     try {
       await createMutation.mutateAsync(data)
-      toast({
-        title: 'Submission created',
+      toast.success('Submission created', {
         description: 'The website will be crawled and data extracted.',
-        status: 'success',
-        duration: 5000,
-        isClosable: true,
       })
       reset()
       onClose()
@@ -85,66 +83,85 @@ export function CreateSubmissionModal({ isOpen, onClose }: CreateSubmissionModal
   const schemas: Schema[] = schemasData ?? []
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} size="md">
-      <ModalOverlay />
-      <ModalContent>
-        <ModalHeader>New Submission</ModalHeader>
-        <ModalCloseButton />
+    <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>New Submission</DialogTitle>
+        </DialogHeader>
+
         <form onSubmit={(e) => void handleSubmit(onSubmit)(e)}>
-          <ModalBody>
-            <VStack spacing={4}>
-              {error && (
-                <Alert status="error" borderRadius="lg">
-                  <AlertIcon />
-                  <HStack justify="space-between" flex={1}>
-                    <span>{error}</span>
-                    <CloseButton size="sm" onClick={() => setError(null)} />
-                  </HStack>
-                </Alert>
-              )}
+          <div className="flex flex-col gap-4 py-4">
+            {error && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription className="flex-1 flex items-center justify-between">
+                  <span>{error}</span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-5 w-5"
+                    onClick={() => setError(null)}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </AlertDescription>
+              </Alert>
+            )}
 
-              <FormControl isInvalid={!!errors.schemaId}>
-                <FormLabel>Schema</FormLabel>
-                <Select
-                  placeholder="Select a schema"
-                  {...register('schemaId')}
-                  isDisabled={schemasLoading}
+            <div className="space-y-2">
+              <Label htmlFor="schema">Schema</Label>
+              <Select
+                value={schemaId}
+                onValueChange={(value) => setValue('schemaId', value)}
+                disabled={schemasLoading}
+              >
+                <SelectTrigger
+                  id="schema"
+                  className={errors.schemaId ? 'border-destructive' : ''}
                 >
+                  <SelectValue placeholder="Select a schema" />
+                </SelectTrigger>
+                <SelectContent>
                   {schemas.map((schema) => (
-                    <option key={schema.id} value={schema.id}>
+                    <SelectItem key={schema.id} value={schema.id}>
                       {schema.name}
-                    </option>
+                    </SelectItem>
                   ))}
-                </Select>
-                <FormErrorMessage>{errors.schemaId?.message}</FormErrorMessage>
-              </FormControl>
+                </SelectContent>
+              </Select>
+              {errors.schemaId && (
+                <p className="text-sm text-destructive">{errors.schemaId.message}</p>
+              )}
+            </div>
 
-              <FormControl isInvalid={!!errors.websiteUrl}>
-                <FormLabel>Website URL</FormLabel>
-                <Input
-                  type="url"
-                  placeholder="https://example.com"
-                  {...register('websiteUrl')}
-                />
-                <FormErrorMessage>{errors.websiteUrl?.message}</FormErrorMessage>
-              </FormControl>
-            </VStack>
-          </ModalBody>
+            <div className="space-y-2">
+              <Label htmlFor="websiteUrl">Website URL</Label>
+              <Input
+                id="websiteUrl"
+                type="url"
+                placeholder="https://example.com"
+                {...register('websiteUrl')}
+                className={errors.websiteUrl ? 'border-destructive' : ''}
+              />
+              {errors.websiteUrl && (
+                <p className="text-sm text-destructive">{errors.websiteUrl.message}</p>
+              )}
+            </div>
+          </div>
 
-          <ModalFooter gap={3}>
-            <Button variant="ghost" onClick={handleClose}>
+          <DialogFooter className="gap-2">
+            <Button type="button" variant="ghost" onClick={handleClose}>
               Cancel
             </Button>
             <Button
               type="submit"
-              variant="primary"
               isLoading={isSubmitting || createMutation.isPending}
             >
               Create Submission
             </Button>
-          </ModalFooter>
+          </DialogFooter>
         </form>
-      </ModalContent>
-    </Modal>
+      </DialogContent>
+    </Dialog>
   )
 }

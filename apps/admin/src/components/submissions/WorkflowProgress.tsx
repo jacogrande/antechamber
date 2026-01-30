@@ -1,5 +1,5 @@
-import { HStack, VStack, Box, Text, Icon } from '@chakra-ui/react'
-import { HiCheck, HiX } from 'react-icons/hi'
+import { Check, X } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import type { WorkflowStep, WorkflowStepStatus } from '@/types/submission'
 
 interface WorkflowProgressProps {
@@ -8,47 +8,39 @@ interface WorkflowProgressProps {
 
 const statusStyles: Record<
   WorkflowStepStatus,
-  { bg: string; borderColor: string; iconColor?: string }
+  { bg: string; border: string }
 > = {
   pending: {
-    bg: 'bg.subtle',
-    borderColor: 'border.default',
+    bg: 'bg-muted',
+    border: 'border-border',
   },
   running: {
-    bg: 'blue.50',
-    borderColor: 'blue.400',
+    bg: 'bg-blue-50 dark:bg-blue-950',
+    border: 'border-blue-400',
   },
   completed: {
-    bg: 'green.50',
-    borderColor: 'green.400',
-    iconColor: 'green.500',
+    bg: 'bg-green-50 dark:bg-green-950',
+    border: 'border-green-400',
   },
   failed: {
-    bg: 'red.50',
-    borderColor: 'red.400',
-    iconColor: 'red.500',
+    bg: 'bg-red-50 dark:bg-red-950',
+    border: 'border-red-400',
   },
 }
 
 function StepIcon({ status }: { status: WorkflowStepStatus }) {
   if (status === 'completed') {
-    return <Icon as={HiCheck} color="green.500" boxSize={4} />
+    return <Check className="h-4 w-4 text-green-500" />
   }
   if (status === 'failed') {
-    return <Icon as={HiX} color="red.500" boxSize={4} />
+    return <X className="h-4 w-4 text-red-500" />
   }
   if (status === 'running') {
     return (
-      <Box
-        w={3}
-        h={3}
-        borderRadius="full"
-        bg="blue.400"
-        animation="pulse 1.5s ease-in-out infinite"
-      />
+      <span className="w-3 h-3 rounded-full bg-blue-400 animate-pulse" />
     )
   }
-  return <Box w={3} h={3} borderRadius="full" bg="gray.300" />
+  return <span className="w-3 h-3 rounded-full bg-muted-foreground/30" />
 }
 
 function formatStepName(name: string): string {
@@ -62,67 +54,58 @@ function formatStepName(name: string): string {
 export function WorkflowProgress({ steps }: WorkflowProgressProps) {
   if (steps.length === 0) {
     return (
-      <Text color="text.muted" fontSize="sm">
+      <p className="text-muted-foreground text-sm">
         No workflow steps recorded.
-      </Text>
+      </p>
     )
   }
 
   return (
-    <VStack spacing={0} align="stretch">
+    <div className="flex flex-col">
       {steps.map((step, index) => {
         const style = statusStyles[step.status]
         const isLast = index === steps.length - 1
 
         return (
-          <HStack key={step.name} spacing={3} position="relative">
+          <div key={step.name} className="flex items-start gap-3 relative">
             {/* Connector line */}
             {!isLast && (
-              <Box
-                position="absolute"
-                left="14px"
-                top="32px"
-                w="2px"
-                h="calc(100% - 8px)"
-                bg={step.status === 'completed' ? 'green.200' : 'border.default'}
+              <div
+                className={cn(
+                  'absolute left-[14px] top-8 w-0.5 h-[calc(100%-8px)]',
+                  step.status === 'completed' ? 'bg-green-200 dark:bg-green-800' : 'bg-border'
+                )}
               />
             )}
 
             {/* Step indicator */}
-            <Box
-              w={8}
-              h={8}
-              borderRadius="full"
-              bg={style.bg}
-              borderWidth={2}
-              borderColor={style.borderColor}
-              display="flex"
-              alignItems="center"
-              justifyContent="center"
-              zIndex={1}
+            <div
+              className={cn(
+                'w-8 h-8 rounded-full border-2 flex items-center justify-center z-10',
+                style.bg,
+                style.border
+              )}
             >
               <StepIcon status={step.status} />
-            </Box>
+            </div>
 
             {/* Step content */}
-            <VStack align="start" spacing={0} py={2} flex={1}>
-              <Text fontWeight="medium" fontSize="sm">
+            <div className="flex flex-col py-1 flex-1">
+              <span className="font-medium text-sm">
                 {formatStepName(step.name)}
-              </Text>
+              </span>
               {step.error && (
-                <Text color="red.500" fontSize="xs">
-                  {step.error}
-                </Text>
+                <span className="text-red-500 text-xs">{step.error}</span>
               )}
               {step.completedAt && (
-                <Text color="text.subtle" fontSize="xs">
+                <span className="text-muted-foreground text-xs">
                   Completed {new Date(step.completedAt).toLocaleTimeString()}
-                </Text>
+                </span>
               )}
-            </VStack>
-          </HStack>
+            </div>
+          </div>
         )
       })}
-    </VStack>
+    </div>
   )
 }
