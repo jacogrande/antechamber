@@ -1,11 +1,14 @@
 import { useReducer, useCallback } from 'react'
 import type { FieldDefinition, FieldType } from '@/types/schema'
+import type { UndoAction, UndoHistory } from '@/domain/undo/models/undo-action'
+import * as undoHistory from '@/domain/undo/services/undo-history'
 
 export interface BuilderState {
   name: string
   fields: FieldDefinition[]
   selectedIndex: number | null
   isDirty: boolean
+  history: UndoHistory
 }
 
 export type BuilderAction =
@@ -19,6 +22,8 @@ export type BuilderAction =
   | { type: 'LOAD_SCHEMA'; name: string; fields: FieldDefinition[] }
   | { type: 'MARK_CLEAN' }
   | { type: 'RESET' }
+  | { type: 'UNDO' }
+  | { type: 'REDO' }
 
 function generateKey(label: string): string {
   return label
@@ -66,24 +71,151 @@ function createField(fieldType: FieldType, existingKeys: string[]): FieldDefinit
   return field
 }
 
+function applyUndoAction(state: BuilderState, action: UndoAction): BuilderState {
+  switch (action.type) {
+    case 'add': {
+      // Undo add = delete the field
+      const fields = state.fields.filter((_, i) => i !== action.insertIndex)
+      let selectedIndex = state.selectedIndex
+      if (selectedIndex !== null) {
+        if (selectedIndex === action.insertIndex) {
+          selectedIndex = fields.length > 0 ? Math.min(action.insertIndex, fields.length - 1) : null
+        } else if (selectedIndex > action.insertIndex) {
+          selectedIndex--
+        }
+      }
+      return { ...state, fields, selectedIndex, isDirty: true }
+    }
+    case 'delete': {
+      // Undo delete = restore the field
+      const fields = [...state.fields]
+      fields.splice(action.index, 0, action.field)
+      return { ...state, fields, selectedIndex: action.index, isDirty: true }
+    }
+    case 'update': {
+      // Undo update = restore previous field
+      const fields = [...state.fields]
+      fields[action.index] = action.previousField
+      return { ...state, fields, isDirty: true }
+    }
+    case 'reorder': {
+      // Undo reorder = reverse the reorder
+      const fields = [...state.fields]
+      const [movedField] = fields.splice(action.toIndex, 1)
+      fields.splice(action.fromIndex, 0, movedField)
+      let selectedIndex = state.selectedIndex
+      if (selectedIndex === action.toIndex) {
+        selectedIndex = action.fromIndex
+      }
+      return { ...state, fields, selectedIndex, isDirty: true }
+    }
+    case 'duplicate': {
+      // Undo duplicate = delete the duplicate
+      const fields = state.fields.filter((_, i) => i !== action.insertIndex)
+      let selectedIndex = state.selectedIndex
+      if (selectedIndex !== null && selectedIndex >= action.insertIndex) {
+        selectedIndex = selectedIndex > action.insertIndex ? selectedIndex - 1 : action.insertIndex - 1
+      }
+      return { ...state, fields, selectedIndex, isDirty: true }
+    }
+    case 'setName': {
+      // Undo setName = restore previous name
+      return { ...state, name: action.previousName, isDirty: true }
+    }
+    default:
+      return state
+  }
+}
+
+function applyRedoAction(state: BuilderState, action: UndoAction): BuilderState {
+  switch (action.type) {
+    case 'add': {
+      // Redo add = add the field back
+      const fields = [...state.fields]
+      fields.splice(action.insertIndex, 0, action.field)
+      return { ...state, fields, selectedIndex: action.insertIndex, isDirty: true }
+    }
+    case 'delete': {
+      // Redo delete = delete again
+      const fields = state.fields.filter((_, i) => i !== action.index)
+      let selectedIndex = state.selectedIndex
+      if (selectedIndex !== null) {
+        if (selectedIndex === action.index) {
+          selectedIndex = fields.length > 0 ? Math.min(action.index, fields.length - 1) : null
+        } else if (selectedIndex > action.index) {
+          selectedIndex--
+        }
+      }
+      return { ...state, fields, selectedIndex, isDirty: true }
+    }
+    case 'update': {
+      // Redo update = apply the new field
+      const fields = [...state.fields]
+      fields[action.index] = action.newField
+      return { ...state, fields, isDirty: true }
+    }
+    case 'reorder': {
+      // Redo reorder = reorder again
+      const fields = [...state.fields]
+      const [movedField] = fields.splice(action.fromIndex, 1)
+      fields.splice(action.toIndex, 0, movedField)
+      let selectedIndex = state.selectedIndex
+      if (selectedIndex === action.fromIndex) {
+        selectedIndex = action.toIndex
+      }
+      return { ...state, fields, selectedIndex, isDirty: true }
+    }
+    case 'duplicate': {
+      // Redo duplicate = add the duplicate back
+      const fields = [...state.fields]
+      fields.splice(action.insertIndex, 0, action.field)
+      return { ...state, fields, selectedIndex: action.insertIndex, isDirty: true }
+    }
+    case 'setName': {
+      // Redo setName = apply new name
+      return { ...state, name: action.newName, isDirty: true }
+    }
+    default:
+      return state
+  }
+}
+
 function builderReducer(state: BuilderState, action: BuilderAction): BuilderState {
   switch (action.type) {
-    case 'SET_NAME':
+    case 'SET_NAME': {
+      const undoAction: UndoAction = {
+        type: 'setName',
+        previousName: state.name,
+        newName: action.name,
+        inverse: { type: 'setName' },
+      }
       return {
         ...state,
         name: action.name,
         isDirty: true,
+        history: undoHistory.pushAction(state.history, undoAction),
       }
+    }
 
     case 'ADD_FIELD': {
       const existingKeys = state.fields.map((f) => f.key)
       const newField = createField(action.fieldType, existingKeys)
       const newFields = [...state.fields, newField]
+      const insertIndex = newFields.length - 1
+
+      const undoAction: UndoAction = {
+        type: 'add',
+        field: newField,
+        insertIndex,
+        inverse: { type: 'delete' },
+      }
+
       return {
         ...state,
         fields: newFields,
-        selectedIndex: newFields.length - 1,
+        selectedIndex: insertIndex,
         isDirty: true,
+        history: undoHistory.pushAction(state.history, undoAction),
       }
     }
 
@@ -108,14 +240,25 @@ function builderReducer(state: BuilderState, action: BuilderAction): BuilderStat
       }
 
       fields[action.index] = updatedField
+
+      const undoAction: UndoAction = {
+        type: 'update',
+        index: action.index,
+        previousField: currentField,
+        newField: updatedField,
+        inverse: { type: 'update' },
+      }
+
       return {
         ...state,
         fields,
         isDirty: true,
+        history: undoHistory.pushAction(state.history, undoAction),
       }
     }
 
     case 'DELETE_FIELD': {
+      const deletedField = state.fields[action.index]
       const fields = state.fields.filter((_, i) => i !== action.index)
       let selectedIndex = state.selectedIndex
 
@@ -127,11 +270,19 @@ function builderReducer(state: BuilderState, action: BuilderAction): BuilderStat
         }
       }
 
+      const undoAction: UndoAction = {
+        type: 'delete',
+        field: deletedField,
+        index: action.index,
+        inverse: { type: 'add' },
+      }
+
       return {
         ...state,
         fields,
         selectedIndex,
         isDirty: true,
+        history: undoHistory.pushAction(state.history, undoAction),
       }
     }
 
@@ -151,11 +302,19 @@ function builderReducer(state: BuilderState, action: BuilderAction): BuilderStat
         }
       }
 
+      const undoAction: UndoAction = {
+        type: 'reorder',
+        fromIndex: action.fromIndex,
+        toIndex: action.toIndex,
+        inverse: { type: 'reorder' },
+      }
+
       return {
         ...state,
         fields,
         selectedIndex,
         isDirty: true,
+        history: undoHistory.pushAction(state.history, undoAction),
       }
     }
 
@@ -183,13 +342,22 @@ function builderReducer(state: BuilderState, action: BuilderAction): BuilderStat
       }
 
       const fields = [...state.fields]
-      fields.splice(action.index + 1, 0, duplicate)
+      const insertIndex = action.index + 1
+      fields.splice(insertIndex, 0, duplicate)
+
+      const undoAction: UndoAction = {
+        type: 'duplicate',
+        field: duplicate,
+        insertIndex,
+        inverse: { type: 'delete' },
+      }
 
       return {
         ...state,
         fields,
-        selectedIndex: action.index + 1,
+        selectedIndex: insertIndex,
         isDirty: true,
+        history: undoHistory.pushAction(state.history, undoAction),
       }
     }
 
@@ -199,6 +367,7 @@ function builderReducer(state: BuilderState, action: BuilderAction): BuilderStat
         fields: action.fields,
         selectedIndex: action.fields.length > 0 ? 0 : null,
         isDirty: false,
+        history: undoHistory.createHistory(),
       }
 
     case 'MARK_CLEAN':
@@ -213,7 +382,28 @@ function builderReducer(state: BuilderState, action: BuilderAction): BuilderStat
         fields: [],
         selectedIndex: null,
         isDirty: false,
+        history: undoHistory.createHistory(),
       }
+
+    case 'UNDO': {
+      const result = undoHistory.undo(state.history)
+      if (result.isErr) {
+        return state
+      }
+      const { action: undoAction, history } = result.value
+      const newState = applyUndoAction(state, undoAction)
+      return { ...newState, history }
+    }
+
+    case 'REDO': {
+      const result = undoHistory.redo(state.history)
+      if (result.isErr) {
+        return state
+      }
+      const { action: redoAction, history } = result.value
+      const newState = applyRedoAction(state, redoAction)
+      return { ...newState, history }
+    }
 
     default:
       return state
@@ -225,6 +415,7 @@ const initialState: BuilderState = {
   fields: [],
   selectedIndex: null,
   isDirty: false,
+  history: undoHistory.createHistory(),
 }
 
 export function useSchemaBuilder(initial?: { name: string; fields: FieldDefinition[] }) {
@@ -236,6 +427,7 @@ export function useSchemaBuilder(initial?: { name: string; fields: FieldDefiniti
           fields: initial.fields,
           selectedIndex: initial.fields.length > 0 ? 0 : null,
           isDirty: false,
+          history: undoHistory.createHistory(),
         }
       : initialState
   )
@@ -280,11 +472,23 @@ export function useSchemaBuilder(initial?: { name: string; fields: FieldDefiniti
     dispatch({ type: 'RESET' })
   }, [])
 
+  const undo = useCallback(() => {
+    dispatch({ type: 'UNDO' })
+  }, [])
+
+  const redo = useCallback(() => {
+    dispatch({ type: 'REDO' })
+  }, [])
+
   const selectedField = state.selectedIndex !== null ? state.fields[state.selectedIndex] : null
+  const canUndo = undoHistory.canUndo(state.history)
+  const canRedo = undoHistory.canRedo(state.history)
 
   return {
     state,
     selectedField,
+    canUndo,
+    canRedo,
     setName,
     addField,
     updateField,
@@ -295,5 +499,7 @@ export function useSchemaBuilder(initial?: { name: string; fields: FieldDefiniti
     loadSchema,
     markClean,
     reset,
+    undo,
+    redo,
   }
 }

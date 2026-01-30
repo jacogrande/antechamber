@@ -63,6 +63,7 @@ export type ExtractedFieldStatus = 'found' | 'not_found' | 'unknown'
 export interface ExtractedFieldValue {
   fieldKey: string
   fieldLabel: string
+  fieldType?: 'string' | 'number' | 'boolean' | 'enum' | 'string[]'
   value: unknown
   status: ExtractedFieldStatus
   citations: Citation[]
