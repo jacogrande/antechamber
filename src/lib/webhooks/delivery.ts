@@ -1,12 +1,10 @@
-import { eq, and, lte, or } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import type { Database } from '@/db/client';
-import { webhooks, webhookDeliveries } from '@/db/schema';
+import { webhookDeliveries } from '@/db/schema';
 import { buildSignatureHeader } from './signing';
 import type { WebhookPayload, WebhookDeliveryResult, WebhookEventType } from './types';
 
-const MAX_RETRY_ATTEMPTS = 5;
-const BASE_DELAY_MS = 1000;
-const MAX_DELAY_MS = 3600000; // 1 hour
+const WEBHOOK_TIMEOUT_MS = 30000; // 30 seconds
 
 export class WebhookDeliveryService {
   constructor(
@@ -15,14 +13,19 @@ export class WebhookDeliveryService {
   ) {}
 
   /**
-   * Queue a webhook delivery for later processing.
+   * Deliver a webhook immediately (synchronous).
+   * Creates a delivery record, attempts HTTP POST, and updates the record with the result.
+   * Returns the delivery result to the caller.
    */
-  async queueDelivery(
+  async deliverImmediately(
     webhookId: string,
     submissionId: string,
     event: WebhookEventType,
     payload: WebhookPayload,
-  ): Promise<string> {
+    endpointUrl: string,
+    secret: string,
+  ): Promise<{ success: boolean; deliveryId: string; error?: string }> {
+    // Create delivery record
     const [delivery] = await this.db
       .insert(webhookDeliveries)
       .values({
@@ -35,131 +38,41 @@ export class WebhookDeliveryService {
       })
       .returning({ id: webhookDeliveries.id });
 
-    return delivery.id;
-  }
+    // Attempt delivery
+    const result = await this.sendWebhook(endpointUrl, payload, secret);
 
-  /**
-   * Process a single delivery by ID.
-   * Returns true if successful, false if failed.
-   */
-  async processDelivery(deliveryId: string): Promise<boolean> {
-    // Load delivery with webhook info
-    const [delivery] = await this.db
-      .select({
-        id: webhookDeliveries.id,
-        webhookId: webhookDeliveries.webhookId,
-        submissionId: webhookDeliveries.submissionId,
-        payload: webhookDeliveries.payload,
-        attempts: webhookDeliveries.attempts,
-        endpointUrl: webhooks.endpointUrl,
-        secret: webhooks.secret,
-        isActive: webhooks.isActive,
-      })
-      .from(webhookDeliveries)
-      .innerJoin(webhooks, eq(webhookDeliveries.webhookId, webhooks.id))
-      .where(eq(webhookDeliveries.id, deliveryId));
-
-    if (!delivery) {
-      return false;
-    }
-
-    // Skip if webhook is inactive
-    if (!delivery.isActive) {
-      await this.db
-        .update(webhookDeliveries)
-        .set({
-          status: 'failed',
-          lastError: 'Webhook is inactive',
-          completedAt: new Date(),
-        })
-        .where(eq(webhookDeliveries.id, deliveryId));
-      return false;
-    }
-
-    const result = await this.sendWebhook(
-      delivery.endpointUrl,
-      delivery.payload as WebhookPayload,
-      delivery.secret,
-    );
-
-    const newAttempts = delivery.attempts + 1;
-
+    // Update record with result
     if (result.success) {
       await this.db
         .update(webhookDeliveries)
         .set({
           status: 'success',
-          attempts: newAttempts,
+          attempts: 1,
           lastAttemptAt: new Date(),
           completedAt: new Date(),
         })
-        .where(eq(webhookDeliveries.id, deliveryId));
-      return true;
+        .where(eq(webhookDeliveries.id, delivery.id));
+
+      return { success: true, deliveryId: delivery.id };
     }
 
-    // Failed - check if we should retry
-    if (newAttempts >= MAX_RETRY_ATTEMPTS) {
-      await this.db
-        .update(webhookDeliveries)
-        .set({
-          status: 'failed',
-          attempts: newAttempts,
-          lastAttemptAt: new Date(),
-          lastError: result.error,
-          completedAt: new Date(),
-        })
-        .where(eq(webhookDeliveries.id, deliveryId));
-      return false;
-    }
-
-    // Schedule retry with exponential backoff
-    const nextRetryAt = this.calculateNextRetry(newAttempts);
+    // Failed - mark as failed (no retries for immediate delivery)
     await this.db
       .update(webhookDeliveries)
       .set({
-        attempts: newAttempts,
+        status: 'failed',
+        attempts: 1,
         lastAttemptAt: new Date(),
         lastError: result.error,
-        nextRetryAt,
+        completedAt: new Date(),
       })
-      .where(eq(webhookDeliveries.id, deliveryId));
+      .where(eq(webhookDeliveries.id, delivery.id));
 
-    return false;
+    return { success: false, deliveryId: delivery.id, error: result.error };
   }
 
   /**
-   * Process all pending deliveries that are ready to be sent.
-   * Returns the number of deliveries processed.
-   */
-  async processPendingDeliveries(batchSize = 10): Promise<number> {
-    const now = new Date();
-
-    // Find deliveries that are pending and either have no nextRetryAt or it's passed
-    const pendingDeliveries = await this.db
-      .select({ id: webhookDeliveries.id })
-      .from(webhookDeliveries)
-      .where(
-        and(
-          eq(webhookDeliveries.status, 'pending'),
-          or(
-            lte(webhookDeliveries.nextRetryAt, now),
-            eq(webhookDeliveries.attempts, 0),
-          ),
-        ),
-      )
-      .limit(batchSize);
-
-    let processed = 0;
-    for (const delivery of pendingDeliveries) {
-      await this.processDelivery(delivery.id);
-      processed++;
-    }
-
-    return processed;
-  }
-
-  /**
-   * Send a webhook to the endpoint.
+   * Send a webhook to the endpoint with a timeout.
    */
   private async sendWebhook(
     url: string,
@@ -177,6 +90,7 @@ export class WebhookDeliveryService {
           'X-Webhook-Signature': signature,
         },
         body,
+        signal: AbortSignal.timeout(WEBHOOK_TIMEOUT_MS),
       });
 
       if (response.ok) {
@@ -189,19 +103,17 @@ export class WebhookDeliveryService {
         error: `HTTP ${response.status}: ${response.statusText}`,
       };
     } catch (err) {
+      // Handle timeout specifically
+      if (err instanceof Error && err.name === 'TimeoutError') {
+        return {
+          success: false,
+          error: `Request timed out after ${WEBHOOK_TIMEOUT_MS}ms`,
+        };
+      }
       return {
         success: false,
         error: err instanceof Error ? err.message : 'Unknown error',
       };
     }
-  }
-
-  /**
-   * Calculate the next retry time using exponential backoff.
-   */
-  calculateNextRetry(attempts: number): Date {
-    // Exponential backoff: 1s, 2s, 4s, 8s, 16s, ...
-    const delayMs = Math.min(BASE_DELAY_MS * Math.pow(2, attempts - 1), MAX_DELAY_MS);
-    return new Date(Date.now() + delayMs);
   }
 }

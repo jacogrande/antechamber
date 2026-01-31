@@ -505,7 +505,8 @@ export function createSubmissionsRoute(depsOverride?: SubmissionsRouteDeps) {
       .where(and(eq(webhooks.tenantId, tenantId), eq(webhooks.isActive, true)));
 
     const webhookService = getWebhookService(db);
-    let webhooksQueued = 0;
+    let webhooksDelivered = 0;
+    let webhooksFailed = 0;
 
     // Build webhook payload
     const webhookPayload: WebhookPayload = {
@@ -549,16 +550,33 @@ export function createSubmissionsRoute(depsOverride?: SubmissionsRouteDeps) {
       }
     }
 
-    // Queue for webhooks that have submission.confirmed event
-    for (const webhook of activeWebhooks) {
-      if (webhook.events?.includes('submission.confirmed')) {
-        await webhookService.queueDelivery(
+    // Deliver webhooks in parallel for those that have submission.confirmed event
+    const webhooksToDeliver = activeWebhooks.filter(
+      (webhook) => webhook.events?.includes('submission.confirmed'),
+    );
+
+    const deliveryResults = await Promise.all(
+      webhooksToDeliver.map((webhook) =>
+        webhookService.deliverImmediately(
           webhook.id,
           submissionId,
           'submission.confirmed',
           webhookPayload,
+          webhook.endpointUrl,
+          webhook.secret,
+        ),
+      ),
+    );
+
+    for (let i = 0; i < deliveryResults.length; i++) {
+      const result = deliveryResults[i];
+      if (result.success) {
+        webhooksDelivered++;
+      } else {
+        webhooksFailed++;
+        console.warn(
+          `[webhook] Delivery failed for webhook ${webhooksToDeliver[i].id}: ${result.error}`,
         );
-        webhooksQueued++;
       }
     }
 
@@ -571,7 +589,8 @@ export function createSubmissionsRoute(depsOverride?: SubmissionsRouteDeps) {
         fields,
         editHistory,
       },
-      webhooksQueued,
+      webhooksDelivered,
+      webhooksFailed,
     });
   });
 

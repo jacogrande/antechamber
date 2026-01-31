@@ -17,21 +17,14 @@ interface MockDelivery {
   attempts: number;
   lastAttemptAt: Date | null;
   lastError: string | null;
-  nextRetryAt: Date | null;
   completedAt: Date | null;
-}
-
-interface MockWebhook {
-  id: string;
-  endpointUrl: string;
-  secret: string;
-  isActive: boolean;
 }
 
 function createMockFetch(options: {
   status?: number;
   shouldThrow?: boolean;
   errorMessage?: string;
+  errorName?: string;
 } = {}) {
   const calls: Array<{ url: string; options: RequestInit }> = [];
 
@@ -39,7 +32,11 @@ function createMockFetch(options: {
     calls.push({ url, options: init ?? {} });
 
     if (options.shouldThrow) {
-      throw new Error(options.errorMessage ?? 'Network error');
+      const error = new Error(options.errorMessage ?? 'Network error');
+      if (options.errorName) {
+        error.name = options.errorName;
+      }
+      throw error;
     }
 
     return {
@@ -72,17 +69,11 @@ const TEST_PAYLOAD: WebhookPayload = {
   },
 };
 
-function createMockDb(options: {
-  delivery?: MockDelivery;
-  webhook?: MockWebhook;
-} = {}) {
-  const delivery = options.delivery;
-  const webhook = options.webhook;
+function createMockDb() {
   const insertedDeliveries: MockDelivery[] = [];
   let nextId = 1;
 
   return {
-    delivery,
     insertedDeliveries,
     insert: () => ({
       values: (row: any) => ({
@@ -98,7 +89,6 @@ function createMockDb(options: {
             attempts: row.attempts ?? 0,
             lastAttemptAt: null,
             lastError: null,
-            nextRetryAt: null,
             completedAt: null,
           };
           insertedDeliveries.push(newDelivery);
@@ -106,33 +96,12 @@ function createMockDb(options: {
         },
       }),
     }),
-    select: () => ({
-      from: () => ({
-        innerJoin: () => ({
-          where: () => {
-            if (!delivery || !webhook) return Promise.resolve([]);
-            return Promise.resolve([{
-              id: delivery.id,
-              webhookId: delivery.webhookId,
-              submissionId: delivery.submissionId,
-              payload: delivery.payload,
-              attempts: delivery.attempts,
-              endpointUrl: webhook.endpointUrl,
-              secret: webhook.secret,
-              isActive: webhook.isActive,
-            }]);
-          },
-        }),
-        where: () => ({
-          limit: () => Promise.resolve([]),
-        }),
-      }),
-    }),
     update: () => ({
       set: (values: any) => ({
         where: () => {
-          if (delivery) {
-            Object.assign(delivery, values);
+          // Update any inserted deliveries
+          if (insertedDeliveries.length > 0) {
+            Object.assign(insertedDeliveries[insertedDeliveries.length - 1], values);
           }
           return Promise.resolve();
         },
@@ -142,260 +111,137 @@ function createMockDb(options: {
 }
 
 describe('WebhookDeliveryService', () => {
-  describe('queueDelivery', () => {
-    it('creates delivery with pending status', async () => {
+  describe('deliverImmediately', () => {
+    it('creates delivery and returns success on 2xx response', async () => {
       const mockDb = createMockDb();
-      const service = new WebhookDeliveryService(mockDb as any);
+      const { fetch, calls } = createMockFetch({ status: 200 });
+      const service = new WebhookDeliveryService(mockDb as any, fetch as any);
 
-      const id = await service.queueDelivery(
+      const result = await service.deliverImmediately(
         'webhook-1',
         'sub-123',
         'submission.confirmed',
         TEST_PAYLOAD,
+        'https://example.com/webhook',
+        'test-secret',
       );
 
-      expect(id).toBe('delivery-1');
+      expect(result.success).toBe(true);
+      expect(result.deliveryId).toBe('delivery-1');
+      expect(result.error).toBeUndefined();
+      expect(calls).toHaveLength(1);
+      expect(calls[0].url).toBe('https://example.com/webhook');
       expect(mockDb.insertedDeliveries).toHaveLength(1);
-      expect(mockDb.insertedDeliveries[0].status).toBe('pending');
-      expect(mockDb.insertedDeliveries[0].attempts).toBe(0);
-    });
-  });
-
-  describe('processDelivery', () => {
-    it('marks delivery as success on 2xx response', async () => {
-      const delivery: MockDelivery = {
-        id: 'delivery-1',
-        webhookId: 'webhook-1',
-        submissionId: 'sub-123',
-        event: 'submission.confirmed',
-        payload: TEST_PAYLOAD,
-        status: 'pending',
-        attempts: 0,
-        lastAttemptAt: null,
-        lastError: null,
-        nextRetryAt: null,
-        completedAt: null,
-      };
-      const webhook: MockWebhook = {
-        id: 'webhook-1',
-        endpointUrl: 'https://example.com/webhook',
-        secret: 'secret',
-        isActive: true,
-      };
-      const mockDb = createMockDb({ delivery, webhook });
-      const { fetch } = createMockFetch({ status: 200 });
-      const service = new WebhookDeliveryService(mockDb as any, fetch as any);
-
-      const result = await service.processDelivery('delivery-1');
-
-      expect(result).toBe(true);
-      expect(delivery.status).toBe('success');
-      expect(delivery.attempts).toBe(1);
+      expect(mockDb.insertedDeliveries[0].status).toBe('success');
+      expect(mockDb.insertedDeliveries[0].attempts).toBe(1);
     });
 
-    it('schedules retry on non-2xx response', async () => {
-      const delivery: MockDelivery = {
-        id: 'delivery-1',
-        webhookId: 'webhook-1',
-        submissionId: 'sub-123',
-        event: 'submission.confirmed',
-        payload: TEST_PAYLOAD,
-        status: 'pending',
-        attempts: 0,
-        lastAttemptAt: null,
-        lastError: null,
-        nextRetryAt: null,
-        completedAt: null,
-      };
-      const webhook: MockWebhook = {
-        id: 'webhook-1',
-        endpointUrl: 'https://example.com/webhook',
-        secret: 'secret',
-        isActive: true,
-      };
-      const mockDb = createMockDb({ delivery, webhook });
-      const { fetch } = createMockFetch({ status: 500 });
+    it('creates delivery and returns failure on non-2xx response', async () => {
+      const mockDb = createMockDb();
+      const { fetch, calls } = createMockFetch({ status: 500 });
       const service = new WebhookDeliveryService(mockDb as any, fetch as any);
 
-      const result = await service.processDelivery('delivery-1');
+      const result = await service.deliverImmediately(
+        'webhook-1',
+        'sub-123',
+        'submission.confirmed',
+        TEST_PAYLOAD,
+        'https://example.com/webhook',
+        'test-secret',
+      );
 
-      expect(result).toBe(false);
-      // Status stays pending for retry
-      expect(delivery.attempts).toBe(1);
-      expect(delivery.nextRetryAt).not.toBeNull();
-      expect(delivery.lastError).toContain('HTTP 500');
-    });
-
-    it('marks as failed after max retries', async () => {
-      const delivery: MockDelivery = {
-        id: 'delivery-1',
-        webhookId: 'webhook-1',
-        submissionId: 'sub-123',
-        event: 'submission.confirmed',
-        payload: TEST_PAYLOAD,
-        status: 'pending',
-        attempts: 4, // Already 4 attempts
-        lastAttemptAt: null,
-        lastError: null,
-        nextRetryAt: null,
-        completedAt: null,
-      };
-      const webhook: MockWebhook = {
-        id: 'webhook-1',
-        endpointUrl: 'https://example.com/webhook',
-        secret: 'secret',
-        isActive: true,
-      };
-      const mockDb = createMockDb({ delivery, webhook });
-      const { fetch } = createMockFetch({ status: 500 });
-      const service = new WebhookDeliveryService(mockDb as any, fetch as any);
-
-      const result = await service.processDelivery('delivery-1');
-
-      expect(result).toBe(false);
-      expect(delivery.status).toBe('failed');
-      expect(delivery.attempts).toBe(5);
+      expect(result.success).toBe(false);
+      expect(result.deliveryId).toBe('delivery-1');
+      expect(result.error).toContain('HTTP 500');
+      expect(calls).toHaveLength(1);
+      expect(mockDb.insertedDeliveries).toHaveLength(1);
+      expect(mockDb.insertedDeliveries[0].status).toBe('failed');
+      expect(mockDb.insertedDeliveries[0].attempts).toBe(1);
     });
 
     it('handles network errors', async () => {
-      const delivery: MockDelivery = {
-        id: 'delivery-1',
-        webhookId: 'webhook-1',
-        submissionId: 'sub-123',
-        event: 'submission.confirmed',
-        payload: TEST_PAYLOAD,
-        status: 'pending',
-        attempts: 0,
-        lastAttemptAt: null,
-        lastError: null,
-        nextRetryAt: null,
-        completedAt: null,
-      };
-      const webhook: MockWebhook = {
-        id: 'webhook-1',
-        endpointUrl: 'https://example.com/webhook',
-        secret: 'secret',
-        isActive: true,
-      };
-      const mockDb = createMockDb({ delivery, webhook });
-      const { fetch } = createMockFetch({ shouldThrow: true, errorMessage: 'Connection refused' });
+      const mockDb = createMockDb();
+      const { fetch, calls } = createMockFetch({ shouldThrow: true, errorMessage: 'Connection refused' });
       const service = new WebhookDeliveryService(mockDb as any, fetch as any);
 
-      const result = await service.processDelivery('delivery-1');
+      const result = await service.deliverImmediately(
+        'webhook-1',
+        'sub-123',
+        'submission.confirmed',
+        TEST_PAYLOAD,
+        'https://example.com/webhook',
+        'test-secret',
+      );
 
-      expect(result).toBe(false);
-      expect(delivery.lastError).toBe('Connection refused');
+      expect(result.success).toBe(false);
+      expect(result.deliveryId).toBe('delivery-1');
+      expect(result.error).toBe('Connection refused');
+      expect(calls).toHaveLength(1);
+      expect(mockDb.insertedDeliveries).toHaveLength(1);
+      expect(mockDb.insertedDeliveries[0].status).toBe('failed');
     });
 
-    it('fails immediately if webhook is inactive', async () => {
-      const delivery: MockDelivery = {
-        id: 'delivery-1',
-        webhookId: 'webhook-1',
-        submissionId: 'sub-123',
-        event: 'submission.confirmed',
-        payload: TEST_PAYLOAD,
-        status: 'pending',
-        attempts: 0,
-        lastAttemptAt: null,
-        lastError: null,
-        nextRetryAt: null,
-        completedAt: null,
-      };
-      const webhook: MockWebhook = {
-        id: 'webhook-1',
-        endpointUrl: 'https://example.com/webhook',
-        secret: 'secret',
-        isActive: false,
-      };
-      const mockDb = createMockDb({ delivery, webhook });
-      const { fetch, calls } = createMockFetch();
+    it('handles timeout errors', async () => {
+      const mockDb = createMockDb();
+      const { fetch, calls } = createMockFetch({
+        shouldThrow: true,
+        errorMessage: 'The operation was aborted',
+        errorName: 'TimeoutError',
+      });
       const service = new WebhookDeliveryService(mockDb as any, fetch as any);
 
-      const result = await service.processDelivery('delivery-1');
+      const result = await service.deliverImmediately(
+        'webhook-1',
+        'sub-123',
+        'submission.confirmed',
+        TEST_PAYLOAD,
+        'https://example.com/webhook',
+        'test-secret',
+      );
 
-      expect(result).toBe(false);
-      expect(delivery.status).toBe('failed');
-      expect(delivery.lastError).toBe('Webhook is inactive');
-      expect(calls).toHaveLength(0); // Should not attempt delivery
+      expect(result.success).toBe(false);
+      expect(result.deliveryId).toBe('delivery-1');
+      expect(result.error).toContain('timed out');
+      expect(calls).toHaveLength(1);
+      expect(mockDb.insertedDeliveries[0].status).toBe('failed');
     });
 
-    it('sends correct headers', async () => {
-      const delivery: MockDelivery = {
-        id: 'delivery-1',
-        webhookId: 'webhook-1',
-        submissionId: 'sub-123',
-        event: 'submission.confirmed',
-        payload: TEST_PAYLOAD,
-        status: 'pending',
-        attempts: 0,
-        lastAttemptAt: null,
-        lastError: null,
-        nextRetryAt: null,
-        completedAt: null,
-      };
-      const webhook: MockWebhook = {
-        id: 'webhook-1',
-        endpointUrl: 'https://example.com/webhook',
-        secret: 'test-secret',
-        isActive: true,
-      };
-      const mockDb = createMockDb({ delivery, webhook });
-      const { fetch, calls } = createMockFetch();
+    it('sends correct headers with signature', async () => {
+      const mockDb = createMockDb();
+      const { fetch, calls } = createMockFetch({ status: 200 });
       const service = new WebhookDeliveryService(mockDb as any, fetch as any);
 
-      await service.processDelivery('delivery-1');
+      await service.deliverImmediately(
+        'webhook-1',
+        'sub-123',
+        'submission.confirmed',
+        TEST_PAYLOAD,
+        'https://example.com/webhook',
+        'test-secret',
+      );
 
       expect(calls).toHaveLength(1);
-      expect(calls[0].url).toBe('https://example.com/webhook');
       expect(calls[0].options.method).toBe('POST');
       expect((calls[0].options.headers as any)['Content-Type']).toBe('application/json');
       expect((calls[0].options.headers as any)['X-Webhook-Signature']).toMatch(/^t=\d+,v1=[a-f0-9]+$/);
     });
 
-    it('returns false for missing delivery', async () => {
-      const mockDb = createMockDb(); // No delivery
-      const { fetch } = createMockFetch();
+    it('includes abort signal for timeout', async () => {
+      const mockDb = createMockDb();
+      const { fetch, calls } = createMockFetch({ status: 200 });
       const service = new WebhookDeliveryService(mockDb as any, fetch as any);
 
-      const result = await service.processDelivery('nonexistent');
+      await service.deliverImmediately(
+        'webhook-1',
+        'sub-123',
+        'submission.confirmed',
+        TEST_PAYLOAD,
+        'https://example.com/webhook',
+        'test-secret',
+      );
 
-      expect(result).toBe(false);
-    });
-  });
-
-  describe('calculateNextRetry', () => {
-    it('uses exponential backoff', () => {
-      const mockDb = createMockDb();
-      const service = new WebhookDeliveryService(mockDb as any);
-
-      const now = Date.now();
-
-      // First retry: ~1s delay
-      const retry1 = service.calculateNextRetry(1);
-      expect(retry1.getTime()).toBeGreaterThanOrEqual(now + 1000);
-      expect(retry1.getTime()).toBeLessThan(now + 2000);
-
-      // Second retry: ~2s delay
-      const retry2 = service.calculateNextRetry(2);
-      expect(retry2.getTime()).toBeGreaterThanOrEqual(now + 2000);
-      expect(retry2.getTime()).toBeLessThan(now + 4000);
-
-      // Third retry: ~4s delay
-      const retry3 = service.calculateNextRetry(3);
-      expect(retry3.getTime()).toBeGreaterThanOrEqual(now + 4000);
-      expect(retry3.getTime()).toBeLessThan(now + 8000);
-    });
-
-    it('caps delay at max value', () => {
-      const mockDb = createMockDb();
-      const service = new WebhookDeliveryService(mockDb as any);
-
-      const now = Date.now();
-      const maxDelayMs = 3600000; // 1 hour
-
-      // Very high attempt count should be capped
-      const retry = service.calculateNextRetry(100);
-      expect(retry.getTime()).toBeLessThanOrEqual(now + maxDelayMs + 1000);
+      expect(calls).toHaveLength(1);
+      expect(calls[0].options.signal).toBeDefined();
     });
   });
 });

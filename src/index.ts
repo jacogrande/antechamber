@@ -9,7 +9,6 @@ import tenantsRoute from './routes/tenants';
 import schemas from './routes/schemas';
 import submissions from './routes/submissions';
 import webhooksRoute from './routes/webhooks';
-import cronRoute from './routes/cron';
 import statsRoute from './routes/stats';
 import { checkDbConnection } from './db/client';
 import type { AppEnv } from './types/app';
@@ -34,17 +33,10 @@ app.onError(errorHandler);
 // Public routes (no auth required)
 app.route('/', health);
 
-// Cron routes (use their own auth via CRON_SECRET)
-app.route('/', cronRoute);
-
-// Auth middleware for /api/* — skip login and cron
+// Auth middleware for /api/* — skip login
 app.use('/api/*', async (c, next) => {
   // Skip auth for login endpoint
   if (c.req.path === '/api/auth/login' && c.req.method === 'POST') {
-    return next();
-  }
-  // Skip auth for cron endpoints (they use CRON_SECRET)
-  if (c.req.path.startsWith('/api/cron/')) {
     return next();
   }
   return authMiddleware(c, next);
