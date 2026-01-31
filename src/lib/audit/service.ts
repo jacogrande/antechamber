@@ -1,5 +1,5 @@
-import type { Database } from '@/db/client';
-import { auditLogs } from '@/db/schema';
+import type { Database } from '../../db/client';
+import { auditLogs } from '../../db/schema';
 import type { AuditEntry } from './types';
 
 export class AuditService {

@@ -1,5 +1,5 @@
-import type { ContextPackResponse, ContextPackSource } from '@/types/api';
-import type { ExtractedFieldForExport } from '@/lib/validation';
+import type { ContextPackResponse, ContextPackSource } from '../../types/api';
+import type { ExtractedFieldForExport } from '../validation';
 
 interface ConfirmedSubmission {
   id: string;

@@ -1,4 +1,4 @@
-import type { FieldDefinition, ExtractedFieldForExport } from '@/lib/validation';
+import type { FieldDefinition, ExtractedFieldForExport } from '../validation';
 
 interface ConfirmedSubmission {
   id: string;

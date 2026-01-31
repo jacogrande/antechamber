@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm';
-import { workflowRuns } from '@/db/schema';
-import { AppError } from '@/lib/errors';
+import { workflowRuns } from '../../db/schema';
+import { AppError } from '../errors';
 import type {
   WorkflowDeps,
   WorkflowDefinition,
@@ -9,7 +9,7 @@ import type {
   RetryPolicy,
 } from './types';
 import { DEFAULT_RETRY_POLICY } from './types';
-import { parseStepRecords, type StepRecord } from '@/lib/validation';
+import { parseStepRecords, type StepRecord } from '../validation';
 
 // ---------------------------------------------------------------------------
 // Helpers

@@ -1,7 +1,7 @@
-import type { Database } from '@/db/client';
-import type { StorageClient } from '@/lib/storage';
-import type { LlmClient } from '@/lib/extraction/types';
-import type { FetchFn } from '@/lib/crawl/types';
+import type { Database } from '../../db/client';
+import type { StorageClient } from '../storage';
+import type { LlmClient } from '../extraction/types';
+import type { FetchFn } from '../crawl/types';
 
 // ---------------------------------------------------------------------------
 // Status unions

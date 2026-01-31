@@ -1,4 +1,4 @@
-import type { StorageClient } from '@/lib/storage';
+import type { StorageClient } from '../storage';
 
 // ---------------------------------------------------------------------------
 // Configuration

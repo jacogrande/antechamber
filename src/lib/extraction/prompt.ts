@@ -1,5 +1,5 @@
-import type { FieldDefinition } from '@/types/domain';
-import type { ExtractedContent } from '@/lib/crawl/types';
+import type { FieldDefinition } from '../../types/domain';
+import type { ExtractedContent } from '../crawl/types';
 import type { LlmToolDefinition } from './types';
 
 /**

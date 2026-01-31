@@ -1,4 +1,4 @@
-import type { FieldDefinition } from '@/types/domain';
+import type { FieldDefinition } from '../../types/domain';
 import type { PageFieldExtraction } from './types';
 
 interface RawExtraction {

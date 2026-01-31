@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm';
-import type { Database } from '@/db/client';
-import { webhookDeliveries } from '@/db/schema';
+import type { Database } from '../../db/client';
+import { webhookDeliveries } from '../../db/schema';
 import { buildSignatureHeader } from './signing';
 import type { WebhookPayload, WebhookDeliveryResult, WebhookEventType } from './types';
 

@@ -2,8 +2,8 @@ import type {
   FieldDefinition,
   Citation,
   ExtractedFieldValue,
-} from '@/types/domain';
-import type { ExtractedContent } from '@/lib/crawl/types';
+} from '../../types/domain';
+import type { ExtractedContent } from '../crawl/types';
 
 // ---------------------------------------------------------------------------
 // LLM Client Interface (injectable — stub in tests, Anthropic in prod)
@@ -143,5 +143,5 @@ export type {
   ExtractedFieldValue,
   FieldStatus,
   FieldType,
-} from '@/types/domain';
-export type { ExtractedContent } from '@/lib/crawl/types';
+} from '../../types/domain';
+export type { ExtractedContent } from '../crawl/types';

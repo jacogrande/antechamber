@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { promises as dns } from 'node:dns';
-import { ValidationError } from '@/lib/errors';
+import { ValidationError } from '../errors';
 import type { ValidatedUrl } from './types';
 
 // ---------------------------------------------------------------------------

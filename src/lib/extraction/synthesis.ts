@@ -1,4 +1,4 @@
-import type { FieldDefinition, ExtractedFieldValue, Citation } from '@/types/domain';
+import type { FieldDefinition, ExtractedFieldValue, Citation } from '../../types/domain';
 import type {
   ExtractionConfig,
   PageExtractionResult,

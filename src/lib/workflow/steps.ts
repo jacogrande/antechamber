@@ -1,10 +1,10 @@
 import { eq, and } from 'drizzle-orm';
-import { submissions, schemas, schemaVersions } from '@/db/schema';
-import { NotFoundError } from '@/lib/errors';
-import { validateUrl } from '@/lib/crawl/url';
-import { runCrawlPipeline } from '@/lib/crawl/pipeline';
-import { extractAndSynthesize } from '@/lib/extraction/facade';
-import { parseFieldDefinitions, type FieldDefinition } from '@/lib/validation';
+import { submissions, schemas, schemaVersions } from '../../db/schema';
+import { NotFoundError } from '../errors';
+import { validateUrl } from '../crawl/url';
+import { runCrawlPipeline } from '../crawl/pipeline';
+import { extractAndSynthesize } from '../extraction/facade';
+import { parseFieldDefinitions, type FieldDefinition } from '../validation';
 import type { StepDefinition, WorkflowDefinition } from './types';
 
 // ---------------------------------------------------------------------------

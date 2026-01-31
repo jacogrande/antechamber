@@ -1,4 +1,4 @@
-import type { FieldDefinition, ExtractedFieldValue } from '@/types/domain';
+import type { FieldDefinition, ExtractedFieldValue } from '../../types/domain';
 import type { ValidationIssue } from './types';
 
 /**

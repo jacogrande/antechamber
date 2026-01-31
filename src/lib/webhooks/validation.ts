@@ -1,5 +1,5 @@
 import { promises as dns } from 'node:dns';
-import { ValidationError } from '@/lib/errors';
+import { ValidationError } from '../errors';
 
 // ---------------------------------------------------------------------------
 // Private IP detection (SSRF prevention)
