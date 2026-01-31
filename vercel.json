@@ -1,10 +1,10 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "framework": null,
-  "buildCommand": "bun run build",
-  "outputDirectory": "public",
-  "rewrites": [
-    { "source": "/api/:path*", "destination": "/api" },
-    { "source": "/((?!api/).*)", "destination": "/index.html" }
-  ]
+  "framework": "hono",
+  "buildCommand": "bun run build:client",
+  "functions": {
+    "src/index.ts": {
+      "runtime": "bun@1"
+    }
+  }
 }

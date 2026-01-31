@@ -3,9 +3,7 @@
   "type": "module",
   "scripts": {
     "dev": "bun run --hot src/index.ts",
-    "build:server": "bun build src/index.ts --outfile=api/index.mjs --target=node --format=esm",
     "build:client": "cd client && bun install && bun run build",
-    "build": "bun run build:server && bun run build:client",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
