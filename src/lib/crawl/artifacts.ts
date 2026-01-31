@@ -1,4 +1,4 @@
-import { gzipSync, gunzipSync } from 'bun';
+import { gzipSync, gunzipSync } from 'node:zlib';
 import { z } from 'zod';
 import type {
   ArtifactKeys,

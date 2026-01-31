@@ -2,7 +2,8 @@
   "name": "antechamber",
   "scripts": {
     "dev": "bun run --hot src/index.ts",
-    "build:all": "cd apps/admin && bun install && bun run build",
+    "build:api": "bun build api/index.ts --outfile api/index.js --target node --external pg-native",
+    "build:all": "bun run build:api && cd apps/admin && bun install && bun run build",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
