@@ -2,9 +2,5 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "hono",
   "buildCommand": "bun run build:client",
-  "functions": {
-    "src/index.ts": {
-      "runtime": "bun@1"
-    }
-  }
+  "bunVersion": "1.x"
 }
