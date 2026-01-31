@@ -8,12 +8,21 @@ Antechamber is a schema-driven intake SaaS. Customers provide a website URL, the
 
 ## Tech Stack
 
+### Backend
 - **Runtime:** Bun
 - **Framework:** Hono (lightweight web framework)
 - **Language:** TypeScript (strict mode) with Hono JSX (`jsxImportSource: "hono/jsx"`)
-- **Deployment:** Vercel Functions (Bun runtime) + Vercel Workflow (WDK) for durable pipelines
-- **Storage (planned):** Postgres + S3/R2 for crawl artifacts
-- **LLM (planned):** Pluggable (OpenAI/Anthropic) for field extraction with citations
+- **Deployment:** Vercel Functions (Bun runtime)
+- **Database:** Postgres (Drizzle ORM)
+- **Storage:** Vercel Blob for crawl artifacts
+- **LLM:** Anthropic Claude for field extraction with citations
+
+### Frontend (`client/`)
+- **Framework:** React 18 + Vite
+- **UI Components:** shadcn/ui (Radix UI primitives + Tailwind CSS)
+- **State:** TanStack Query for server state
+- **Forms:** React Hook Form + Zod
+- **Auth:** Supabase Auth
 
 ## Development Commands
 

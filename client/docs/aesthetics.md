@@ -19,7 +19,7 @@ This document analyzes our current design system, surveys 2026 UI trends, and re
 
 ### The Problem
 
-Our current design is **"default Tailwind with Chakra characteristics"** — competent but forgettable. It doesn't signal:
+Our current design is **"default Tailwind/shadcn"** — competent but forgettable. It doesn't signal:
 - **Trust** — essential for handling sensitive customer data
 - **Craft** — users judge software quality by visual quality
 - **Differentiation** — indistinguishable from generic SaaS templates
@@ -305,7 +305,7 @@ const springs = {
 
 ### 7. Data Visualization
 
-**Current:** Default Chakra styling
+**Current:** Default shadcn/ui styling
 **Proposed:** Consistent with brand, high contrast
 
 ```ts

@@ -19,12 +19,12 @@ A single-page application for tenant admins to manage their onboarding intake sy
 | Build Tool | Vite | Fast HMR, native ESM, simple config |
 | Routing | React Router v6 | Standard SPA routing |
 | State | TanStack Query (React Query) | Server state management, caching, optimistic updates |
-| Styling | Tailwind CSS + Radix UI | Utility-first CSS with accessible primitives (shadcn/ui pattern) |
+| Styling | shadcn/ui | Tailwind CSS + Radix UI primitives — copy-paste components, full ownership |
 | Forms | React Hook Form + Zod | Type-safe validation (reuse API schemas) |
 | Auth | Supabase Auth JS | Direct integration with existing auth |
 | HTTP | Fetch + custom hooks | Lightweight, no axios needed |
 
-> **Note:** This plan originally specified Chakra UI, but the implementation uses Tailwind CSS + Radix UI (shadcn/ui pattern) instead. The component examples below are outdated but the architecture remains accurate.
+> **Note:** This plan originally specified Chakra UI, but the implementation uses **shadcn/ui** (Tailwind CSS + Radix UI primitives) instead. The Chakra-specific component examples below are outdated but the architecture remains accurate.
 
 ## Project Structure
 

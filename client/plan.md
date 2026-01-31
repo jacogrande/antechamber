@@ -194,7 +194,7 @@ None.
 
 4. **Keyboard Support** - Comprehensive keyboard shortcuts (Cmd+Z, Cmd+Shift+Z, Delete, Cmd+D, Arrow keys).
 
-5. **Pattern Consistency** - Follows existing project patterns for Chakra UI components and hook structure.
+5. **Pattern Consistency** - Follows existing project patterns for shadcn/ui components and hook structure.
 
 6. **Functional Core** - Result types and pure functions enable predictable error handling without exceptions.
 

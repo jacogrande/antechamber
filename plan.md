@@ -177,7 +177,7 @@ None identified.
 1. **Consistent patterns** - Code follows existing project conventions:
    - Zod for validation
    - React Query for mutations
-   - Chakra UI for components
+   - shadcn/ui for components (Tailwind + Radix)
    - Same error handling patterns as other routes
 
 2. **Proper transaction handling** - Tenant and membership creation wrapped in transaction
