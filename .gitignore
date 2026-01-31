@@ -9,6 +9,7 @@ node_modules/
 dist/
 /public/
 api/*.js
+api/*.mjs
 
 # drizzle
 drizzle/
