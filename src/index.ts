@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { serveStatic } from 'hono/bun';
 import { errorHandler } from './middleware/error-handler';
 import { authMiddleware } from './middleware/auth';
 import { tenantMiddleware } from './middleware/tenant';
@@ -66,5 +67,11 @@ app.route('/', schemas);
 app.route('/', submissions);
 app.route('/', webhooksRoute);
 app.route('/', statsRoute);
+
+// Serve static files from public directory
+app.use('/*', serveStatic({ root: './public' }));
+
+// SPA fallback - serve index.html for all non-API routes
+app.get('*', serveStatic({ path: './public/index.html' }));
 
 export default app;
