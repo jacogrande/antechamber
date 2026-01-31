@@ -1,5 +1,5 @@
 import { put, del, head, type PutBlobResult } from '@vercel/blob';
-import type { StorageClient } from '../storage';
+import type { StorageClient } from './types';
 
 /**
  * StorageClient implementation backed by Vercel Blob.
