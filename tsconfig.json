@@ -19,6 +19,6 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["src/**/*", "api/**/*", "tests/**/*", "drizzle.config.ts"],
-  "exclude": ["node_modules", "dist", "apps"]
+  "include": ["src/**/*", "tests/**/*", "drizzle.config.ts"],
+  "exclude": ["node_modules", "dist", "client"]
 }

@@ -53,7 +53,7 @@ Added new `ai` category to schema template gallery.
 **Branch**: `main`
 **Uncommitted changes**: Yes - significant changes across frontend and backend
 
-### Modified Files (Frontend - apps/admin)
+### Modified Files (Frontend - client/)
 - `src/components/schemas/SchemaTemplateGallery.tsx` - Added 'ai' category
 - `src/components/submissions/ExtractedFieldsTable.tsx` - Editing, confidence, citations
 - `src/components/submissions/WorkflowProgress.tsx` - Horizontal layout
@@ -133,12 +133,12 @@ Make logging conditional on `NODE_ENV=development` or add log level config.
 - `src/lib/extraction/prompt.ts` - LLM instructions
 
 ### Submission Detail
-- `apps/admin/src/pages/submissions/SubmissionDetail.tsx` - Main page
-- `apps/admin/src/components/submissions/ExtractedFieldsTable.tsx` - Field display/editing
+- `client/src/pages/submissions/SubmissionDetail.tsx` - Main page
+- `client/src/components/submissions/ExtractedFieldsTable.tsx` - Field display/editing
 - `src/routes/submissions.ts` - API response transformation
 
 ### AI Templates
-- `apps/admin/src/lib/example-schemas.ts` - All templates including AI packs
+- `client/src/lib/example-schemas.ts` - All templates including AI packs
 
 ## Commands to Resume
 
@@ -150,14 +150,14 @@ git status
 
 # Type check both projects
 bun run typecheck
-cd apps/admin && bun run build && cd ..
+cd client && bun run build && cd ..
 
 # Start both servers (two terminals)
 # Terminal 1 - Backend:
 bun run dev
 
 # Terminal 2 - Frontend:
-cd apps/admin && bun run dev
+cd client && bun run dev
 
 # Test a submission
 # 1. Go to http://localhost:5173

@@ -109,19 +109,19 @@ Signup → Verify Email → Login → No tenants? → /setup/org → Create Org 
 | File | Purpose |
 |------|---------|
 | `src/routes/tenants.ts` | Backend POST /api/tenants endpoint |
-| `apps/admin/src/lib/api/tenants.ts` | Frontend API client for tenant creation |
-| `apps/admin/src/hooks/useTenantSetup.ts` | React Query mutation hook |
-| `apps/admin/src/components/auth/TenantGuard.tsx` | Guard for tenant-scoped routes |
-| `apps/admin/src/pages/setup/OrganizationSetup.tsx` | Organization setup page |
-| `apps/admin/src/pages/setup/index.ts` | Barrel export |
+| `client/src/lib/api/tenants.ts` | Frontend API client for tenant creation |
+| `client/src/hooks/useTenantSetup.ts` | React Query mutation hook |
+| `client/src/components/auth/TenantGuard.tsx` | Guard for tenant-scoped routes |
+| `client/src/pages/setup/OrganizationSetup.tsx` | Organization setup page |
+| `client/src/pages/setup/index.ts` | Barrel export |
 
 ### Modified
 | File | Change |
 |------|--------|
 | `src/types/api.ts` | Added `createTenantRequestSchema` and response types |
 | `src/index.ts` | Registered the tenants route |
-| `apps/admin/src/routes.tsx` | Added `/setup/org` route, wrapped protected routes with `TenantGuard` |
-| `apps/admin/src/pages/Login.tsx` | Changed zero-tenants case to redirect to `/setup/org` |
+| `client/src/routes.tsx` | Added `/setup/org` route, wrapped protected routes with `TenantGuard` |
+| `client/src/pages/Login.tsx` | Changed zero-tenants case to redirect to `/setup/org` |
 
 ## Verification Results
 
@@ -145,7 +145,7 @@ None identified.
 
 1. **Duplicate `generateSlug` function** - The slug generation logic is duplicated in:
    - `src/routes/tenants.ts:16-22`
-   - `apps/admin/src/pages/setup/OrganizationSetup.tsx:33-38`
+   - `client/src/pages/setup/OrganizationSetup.tsx:33-38`
 
    Consider extracting to a shared utility if this pattern grows. For now it's acceptable as:
    - They serve different purposes (backend validation vs. frontend preview)
@@ -226,27 +226,27 @@ The implementation is complete, follows existing patterns, handles errors gracef
 ### New Files (Frontend - 14 files)
 | File | Purpose |
 |------|---------|
-| `apps/admin/src/types/webhook.ts` | TypeScript types for webhooks |
-| `apps/admin/src/lib/api/webhooks.ts` | API client functions |
-| `apps/admin/src/hooks/useWebhooks.ts` | TanStack Query hooks |
-| `apps/admin/src/components/common/CopyButton.tsx` | Reusable copy button |
-| `apps/admin/src/components/webhooks/WebhookStatusBadge.tsx` | Active/Inactive badge |
-| `apps/admin/src/components/webhooks/WebhookEventBadge.tsx` | Event type badge |
-| `apps/admin/src/components/webhooks/WebhookCreateModal.tsx` | Create webhook form |
-| `apps/admin/src/components/webhooks/WebhookSecretModal.tsx` | Secret reveal dialog |
-| `apps/admin/src/components/webhooks/WebhookDeliveryLog.tsx` | Delivery history table |
-| `apps/admin/src/components/webhooks/WebhookRow.tsx` | Expandable table row |
-| `apps/admin/src/components/webhooks/WebhookTable.tsx` | Main webhook table |
-| `apps/admin/src/components/webhooks/index.ts` | Component exports |
-| `apps/admin/src/pages/webhooks/Webhooks.tsx` | Main webhooks page |
-| `apps/admin/src/pages/webhooks/index.ts` | Page exports |
+| `client/src/types/webhook.ts` | TypeScript types for webhooks |
+| `client/src/lib/api/webhooks.ts` | API client functions |
+| `client/src/hooks/useWebhooks.ts` | TanStack Query hooks |
+| `client/src/components/common/CopyButton.tsx` | Reusable copy button |
+| `client/src/components/webhooks/WebhookStatusBadge.tsx` | Active/Inactive badge |
+| `client/src/components/webhooks/WebhookEventBadge.tsx` | Event type badge |
+| `client/src/components/webhooks/WebhookCreateModal.tsx` | Create webhook form |
+| `client/src/components/webhooks/WebhookSecretModal.tsx` | Secret reveal dialog |
+| `client/src/components/webhooks/WebhookDeliveryLog.tsx` | Delivery history table |
+| `client/src/components/webhooks/WebhookRow.tsx` | Expandable table row |
+| `client/src/components/webhooks/WebhookTable.tsx` | Main webhook table |
+| `client/src/components/webhooks/index.ts` | Component exports |
+| `client/src/pages/webhooks/Webhooks.tsx` | Main webhooks page |
+| `client/src/pages/webhooks/index.ts` | Page exports |
 
 ### Modified Files (3 files)
 | File | Change |
 |------|--------|
 | `src/routes/webhooks.ts` | Added GET /api/webhooks/:id/deliveries endpoint |
-| `apps/admin/src/components/common/index.ts` | Added CopyButton export |
-| `apps/admin/src/routes.tsx` | Updated /webhooks route to use new page |
+| `client/src/components/common/index.ts` | Added CopyButton export |
+| `client/src/routes.tsx` | Updated /webhooks route to use new page |
 
 ---
 

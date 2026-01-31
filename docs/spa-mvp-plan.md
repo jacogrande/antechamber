@@ -19,16 +19,17 @@ A single-page application for tenant admins to manage their onboarding intake sy
 | Build Tool | Vite | Fast HMR, native ESM, simple config |
 | Routing | React Router v6 | Standard SPA routing |
 | State | TanStack Query (React Query) | Server state management, caching, optimistic updates |
-| Styling | Chakra UI v2 | Component library with built-in theming, accessible |
-| Design Tokens | Chakra Theme + Custom Tokens | Consistent design system, easy customization |
+| Styling | Tailwind CSS + Radix UI | Utility-first CSS with accessible primitives (shadcn/ui pattern) |
 | Forms | React Hook Form + Zod | Type-safe validation (reuse API schemas) |
 | Auth | Supabase Auth JS | Direct integration with existing auth |
 | HTTP | Fetch + custom hooks | Lightweight, no axios needed |
 
+> **Note:** This plan originally specified Chakra UI, but the implementation uses Tailwind CSS + Radix UI (shadcn/ui pattern) instead. The component examples below are outdated but the architecture remains accurate.
+
 ## Project Structure
 
 ```
-apps/admin/
+client/
 ├── index.html
 ├── vite.config.ts
 ├── tsconfig.json
@@ -1245,7 +1246,7 @@ export const router = createBrowserRouter([
 ## Environment Variables
 
 ```bash
-# apps/admin/.env
+# client/.env
 VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key
 VITE_API_URL=http://localhost:3000
@@ -1258,7 +1259,7 @@ VITE_API_URL=http://localhost:3000
 ### Development
 
 ```bash
-cd apps/admin
+cd client
 bun install
 bun run dev  # Vite dev server on :5173
 ```

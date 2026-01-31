@@ -13,7 +13,7 @@ const tenantsRoute = new Hono<AppEnv>();
  * Converts to lowercase, replaces spaces/special chars with hyphens,
  * removes consecutive hyphens, and trims leading/trailing hyphens.
  *
- * NOTE: This logic is duplicated in apps/admin/src/pages/setup/OrganizationSetup.tsx
+ * NOTE: This logic is duplicated in client/src/pages/setup/OrganizationSetup.tsx
  * for client-side preview. Keep them in sync if modifying.
  */
 function generateSlug(name: string): string {
