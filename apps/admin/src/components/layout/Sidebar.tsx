@@ -34,7 +34,9 @@ export function Sidebar({ onClose }: SidebarProps) {
     <nav className="flex h-full w-full flex-col border-r border-border bg-sidebar py-6">
       {/* Logo */}
       <div className="mb-8 flex items-center gap-3 px-6">
-        <img src="/logo.png" alt="Antechamber" className="h-10 w-10" />
+        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
+          <span className="text-lg font-bold text-primary-foreground">A</span>
+        </div>
         <span className="text-lg font-bold tracking-tight text-foreground">
           Antechamber
         </span>
