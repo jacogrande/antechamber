@@ -3,7 +3,6 @@
   "type": "module",
   "scripts": {
     "dev": "bun run --hot src/index.ts",
-    "build:client": "cd client && bun install && bun run build",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
