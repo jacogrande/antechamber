@@ -13,7 +13,11 @@
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
-    "outDir": "dist"
+    "outDir": "dist",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    }
   },
   "include": ["src/**/*", "tests/**/*", "drizzle.config.ts"],
   "exclude": ["node_modules", "dist", "client"]
