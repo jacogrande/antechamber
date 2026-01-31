@@ -3,8 +3,7 @@
   "type": "module",
   "scripts": {
     "dev": "bun run --hot src/index.ts",
-    "build:api": "bun build api/index.ts --outfile api/index.mjs --target node --external pg-native",
-    "build:all": "bun run build:api && cd apps/admin && bun install && bun run build",
+    "build:client": "cd client && bun install && bun run build",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
