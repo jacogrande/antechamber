@@ -1,5 +1,11 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "bun install --cwd apps/admin && bun run --cwd apps/admin build",
-  "installCommand": "bun install"
+  "framework": null,
+  "buildCommand": "bun run build:all",
+  "installCommand": "bun install",
+  "outputDirectory": "public",
+  "rewrites": [
+    { "source": "/api/:path*", "destination": "/api" },
+    { "source": "/:path*", "destination": "/index.html" }
+  ]
 }
