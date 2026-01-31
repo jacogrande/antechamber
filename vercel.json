@@ -2,8 +2,5 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "hono",
   "buildCommand": "bun run build:client",
-  "bunVersion": "1.x",
-  "rewrites": [
-    { "source": "/((?!api/|assets/|_next/).*)", "destination": "/index.html" }
-  ]
+  "bunVersion": "1.x"
 }
