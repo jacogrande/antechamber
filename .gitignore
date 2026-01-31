@@ -7,7 +7,7 @@ node_modules/
 
 # build
 dist/
-public/
+/public/
 api/*.js
 
 # drizzle
