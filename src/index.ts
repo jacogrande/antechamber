@@ -29,18 +29,22 @@ app.use('*', async (c, next) => {
 });
 
 // CORS - allow console app to make requests
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'https://console.antechamber.dev',
+  ...(process.env.ALLOWED_ORIGINS?.split(',') ?? []),
+];
+
 app.use(
   '/api/*',
   cors({
     origin: (origin) => {
-      // Allow requests from any origin in development, or from configured origins in production
-      // In production, set ALLOWED_ORIGINS env var to comma-separated list of allowed origins
-      const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') ?? [];
-      if (allowedOrigins.length === 0) {
-        // Development: allow all origins
-        return origin;
+      // Allow if origin matches allowed list, or if no origin (same-origin/non-browser)
+      if (!origin || allowedOrigins.includes(origin)) {
+        return origin || '*';
       }
-      return allowedOrigins.includes(origin) ? origin : null;
+      return null;
     },
     allowHeaders: ['Content-Type', 'Authorization', 'X-Tenant-ID'],
     allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
