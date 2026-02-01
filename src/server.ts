@@ -1,7 +1,3 @@
-// Force IPv4 DNS resolution to work around Supabase IPv6 + Vercel connectivity issues
-import dns from 'node:dns';
-dns.setDefaultResultOrder('ipv4first');
-
 import { serve } from '@hono/node-server';
 import app from './index';
 
