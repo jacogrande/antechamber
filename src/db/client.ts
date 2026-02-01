@@ -9,6 +9,8 @@ function createDb(connectionString: string) {
   sqlClient = postgres(connectionString, {
     ssl: 'require',
     connect_timeout: 10,
+    prepare: false, // Required for Supabase Transaction mode pooler
+    max: 1, // Limit connections per serverless instance
   });
   return drizzle(sqlClient, { schema });
 }
