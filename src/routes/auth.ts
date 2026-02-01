@@ -42,23 +42,24 @@ auth.post('/api/auth/login', async (c) => {
   const db = getDb();
   const authId = data.user.id;
 
-  // Upsert user on first login
-  const [existingUser] = await db.select().from(users).where(eq(users.authId, authId)).limit(1);
-
-  let userId: string;
-  if (existingUser) {
-    userId = existingUser.id;
-  } else {
-    const [newUser] = await db
-      .insert(users)
-      .values({
+  // Upsert user on login - update authId if email exists, or insert new
+  const [upsertedUser] = await db
+    .insert(users)
+    .values({
+      authId,
+      email: userEmail,
+      name: data.user.user_metadata?.name ?? null,
+    })
+    .onConflictDoUpdate({
+      target: users.email,
+      set: {
         authId,
-        email: userEmail,
         name: data.user.user_metadata?.name ?? null,
-      })
-      .returning();
-    userId = newUser.id;
-  }
+      },
+    })
+    .returning();
+
+  const userId = upsertedUser.id;
 
   // Fetch tenant memberships with tenant details
   const memberships = await db
