@@ -35,6 +35,7 @@ export async function extractFieldsFromPage(
       pageTitle: page.title,
       fetchedAt: page.fetchedAt,
       fields: [],
+      usage: { inputTokens: 0, outputTokens: 0 },
     };
   }
 
@@ -67,5 +68,6 @@ export async function extractFieldsFromPage(
     pageTitle: page.title,
     fetchedAt: page.fetchedAt,
     fields: parsed,
+    usage: result.usage,
   };
 }

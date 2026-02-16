@@ -28,7 +28,13 @@ export function createAnthropicClient(
       if (!textBlock || textBlock.type !== 'text') {
         throw new Error('LLM response did not contain a text block');
       }
-      return textBlock.text;
+      return {
+        text: textBlock.text,
+        usage: {
+          inputTokens: response.usage.input_tokens,
+          outputTokens: response.usage.output_tokens,
+        },
+      };
     },
 
     async chatWithTools(system, messages, tools, options) {
@@ -61,6 +67,10 @@ export function createAnthropicClient(
       return {
         toolName: toolUseBlock.name,
         input: toolUseBlock.input,
+        usage: {
+          inputTokens: response.usage.input_tokens,
+          outputTokens: response.usage.output_tokens,
+        },
       };
     },
   };

@@ -219,7 +219,7 @@ describe('extractAndSynthesize', () => {
     let maxConcurrent = 0;
     const client: ReturnType<typeof createStubLlmClient> = {
       async chat() {
-        return '';
+        return { text: '', usage: { inputTokens: 0, outputTokens: 0 } };
       },
       async chatWithTools() {
         concurrent++;
@@ -234,6 +234,7 @@ describe('extractAndSynthesize', () => {
               { key: 'company_name', value: 'Test', confidence: 0.9, snippet: 'Test' },
             ],
           },
+          usage: { inputTokens: 0, outputTokens: 0 },
         };
       },
     };

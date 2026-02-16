@@ -4,5 +4,6 @@ export type AppEnv = {
     tenantId: string;
     tenantRole: 'admin' | 'editor' | 'viewer';
     jwtPayload: Record<string, unknown>;
+    requestId: string;
   };
 };

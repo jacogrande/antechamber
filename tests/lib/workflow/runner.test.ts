@@ -84,8 +84,8 @@ function createStubDeps(db: any): WorkflowDeps {
       getSignedUrl: async (key: string) => `https://stub-storage.local/${key}`,
     },
     llmClient: {
-      chat: async () => '',
-      chatWithTools: async () => ({ toolName: '', input: {} }),
+      chat: async () => ({ text: '', usage: { inputTokens: 0, outputTokens: 0 } }),
+      chatWithTools: async () => ({ toolName: '', input: {}, usage: { inputTokens: 0, outputTokens: 0 } }),
     },
   };
 }

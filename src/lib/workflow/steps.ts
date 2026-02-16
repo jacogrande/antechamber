@@ -168,6 +168,7 @@ interface ExtractOutput {
     reason?: string;
   }>;
   pageResultCount: number;
+  usage: { inputTokens: number; outputTokens: number };
 }
 
 export const extractStep: StepDefinition<ExtractOutput> = {
@@ -193,6 +194,7 @@ export const extractStep: StepDefinition<ExtractOutput> = {
     return {
       fields: result.fields,
       pageResultCount: result.pageResults.length,
+      usage: result.usage,
     };
   },
 };

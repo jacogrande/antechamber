@@ -1,6 +1,7 @@
 import type { ErrorHandler } from 'hono';
 import { AppError } from '../lib/errors';
 import { createLogger } from '../lib/logger';
+import { captureException } from '../lib/sentry';
 
 const log = createLogger('error-handler');
 
@@ -18,7 +19,9 @@ export const errorHandler: ErrorHandler = (err, c) => {
     );
   }
 
-  log.error('Unhandled error', { method: c.req.method, path: c.req.path, error: err instanceof Error ? err.message : String(err), stack: err instanceof Error ? err.stack : undefined });
+  const requestId = c.get('requestId') as string | undefined;
+  log.error('Unhandled error', { method: c.req.method, path: c.req.path, requestId, error: err instanceof Error ? err.message : String(err), stack: err instanceof Error ? err.stack : undefined });
+  captureException(err, { method: c.req.method, path: c.req.path, requestId });
 
   return c.json(
     {

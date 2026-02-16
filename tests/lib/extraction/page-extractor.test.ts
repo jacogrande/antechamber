@@ -93,11 +93,11 @@ describe('extractFieldsFromPage', () => {
     let capturedOptions: Record<string, unknown> | undefined;
     const client: ReturnType<typeof createStubLlmClient> = {
       async chat() {
-        return '';
+        return { text: '', usage: { inputTokens: 0, outputTokens: 0 } };
       },
       async chatWithTools(_system, _messages, _tools, options) {
         capturedOptions = options as Record<string, unknown>;
-        return { toolName: 'extract_fields', input: { extractions: [] } };
+        return { toolName: 'extract_fields', input: { extractions: [] }, usage: { inputTokens: 0, outputTokens: 0 } };
       },
     };
 

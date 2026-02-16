@@ -135,8 +135,8 @@ function createStubContext(
       getSignedUrl: async (key: string) => `https://stub-storage.local/${key}`,
     },
     llmClient: {
-      chat: async () => '',
-      chatWithTools: async () => ({ toolName: '', input: {} }),
+      chat: async () => ({ text: '', usage: { inputTokens: 0, outputTokens: 0 } }),
+      chatWithTools: async () => ({ toolName: '', input: {}, usage: { inputTokens: 0, outputTokens: 0 } }),
     },
     runId: RUN_ID,
     submissionId: SUBMISSION_ID,
@@ -279,7 +279,7 @@ describe('extract step', () => {
 
     // Build a stub LLM client that returns known extraction output
     const stubLlmClient = {
-      chat: async () => '',
+      chat: async () => ({ text: '', usage: { inputTokens: 0, outputTokens: 0 } }),
       chatWithTools: async () => ({
         toolName: 'extract_fields',
         input: {
@@ -293,6 +293,7 @@ describe('extract step', () => {
             },
           ],
         },
+        usage: { inputTokens: 150, outputTokens: 75 },
       }),
     };
 
@@ -303,6 +304,9 @@ describe('extract step', () => {
     expect(result.fields).toBeDefined();
     expect(Array.isArray(result.fields)).toBe(true);
     expect(result.pageResultCount).toBeGreaterThanOrEqual(0);
+    expect(result.usage).toBeDefined();
+    expect(result.usage.inputTokens).toBeGreaterThanOrEqual(0);
+    expect(result.usage.outputTokens).toBeGreaterThanOrEqual(0);
   });
 });
 
@@ -315,6 +319,7 @@ describe('persist_draft step', () => {
     const extractOutput = {
       fields: [EXTRACTED_FIELD],
       pageResultCount: 1,
+      usage: { inputTokens: 100, outputTokens: 50 },
     };
     const updatedSubmissions: Array<Record<string, unknown>> = [];
     const db = createStubDb({

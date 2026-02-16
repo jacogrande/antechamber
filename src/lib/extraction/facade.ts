@@ -1,4 +1,4 @@
-import type { LlmClient, ExtractionConfig, ExtractionInput, ExtractionOutput, PageExtractionResult } from './types';
+import type { LlmClient, ExtractionConfig, ExtractionInput, ExtractionOutput, PageExtractionResult, LlmUsage } from './types';
 import { DEFAULT_EXTRACTION_CONFIG } from './types';
 import { extractFieldsFromPage } from './page-extractor';
 import { synthesizeFields } from './synthesis';
@@ -40,6 +40,7 @@ export async function extractAndSynthesize(
 
   // 1. Per-page LLM extraction (bounded concurrency)
   const pageResults: PageExtractionResult[] = [];
+  const totalUsage: LlmUsage = { inputTokens: 0, outputTokens: 0 };
   const batches = chunk(input.pages, cfg.extractionConcurrency);
   log.debug('Processing batches', { batchCount: batches.length, concurrency: cfg.extractionConcurrency });
 
@@ -55,6 +56,12 @@ export async function extractAndSynthesize(
     );
     const batchTime = Date.now() - batchStart;
     log.debug('Batch complete', { batch: batchNum, elapsed: batchTime });
+    for (const pr of batchResults) {
+      if (pr.usage) {
+        totalUsage.inputTokens += pr.usage.inputTokens;
+        totalUsage.outputTokens += pr.usage.outputTokens;
+      }
+    }
     pageResults.push(...batchResults);
   }
 
@@ -79,6 +86,6 @@ export async function extractAndSynthesize(
   }
   synthesized = applyValidationResults(synthesized, issues);
 
-  log.info('Extraction pipeline complete');
-  return { fields: synthesized, pageResults };
+  log.info('Extraction pipeline complete', { usage: totalUsage });
+  return { fields: synthesized, pageResults, usage: totalUsage };
 }

@@ -2,7 +2,7 @@ import type { FieldDefinition } from '@/types/domain';
 import type { ExtractedContent } from '@/lib/crawl/types';
 import type {
   LlmClient,
-  LlmToolCallResult,
+  LlmToolCallResultWithUsage,
   PageExtractionResult,
   PageFieldExtraction,
 } from '@/lib/extraction/types';
@@ -28,27 +28,30 @@ interface StubLlmConfig {
  * Create a stub LlmClient for testing. Matches user message content
  * against configured substring patterns and returns canned tool_use responses.
  */
+const ZERO_USAGE = { inputTokens: 0, outputTokens: 0 };
+
 export function createStubLlmClient(config: StubLlmConfig): LlmClient {
   return {
     async chat() {
-      return '';
+      return { text: '', usage: ZERO_USAGE };
     },
-    async chatWithTools(_system, messages, _tools, _options): Promise<LlmToolCallResult> {
+    async chatWithTools(_system, messages, _tools, _options): Promise<LlmToolCallResultWithUsage> {
       const userMsg = messages.find((m) => m.role === 'user')?.content ?? '';
 
       for (const entry of config.responses ?? []) {
         if (userMsg.includes(entry.match)) {
-          return { toolName: 'extract_fields', input: entry.response };
+          return { toolName: 'extract_fields', input: entry.response, usage: ZERO_USAGE };
         }
       }
 
       if (config.defaultResponse !== undefined) {
-        return { toolName: 'extract_fields', input: config.defaultResponse };
+        return { toolName: 'extract_fields', input: config.defaultResponse, usage: ZERO_USAGE };
       }
 
       return {
         toolName: 'extract_fields',
         input: { extractions: [] },
+        usage: ZERO_USAGE,
       };
     },
   };

@@ -20,12 +20,26 @@ export interface LlmToolCallResult {
   input: unknown;
 }
 
+export interface LlmUsage {
+  inputTokens: number;
+  outputTokens: number;
+}
+
+export interface LlmChatResult {
+  text: string;
+  usage: LlmUsage;
+}
+
+export interface LlmToolCallResultWithUsage extends LlmToolCallResult {
+  usage: LlmUsage;
+}
+
 export interface LlmClient {
   chat(
     system: string,
     messages: Array<{ role: 'user' | 'assistant'; content: string }>,
     options?: { model?: string; maxTokens?: number; temperature?: number },
-  ): Promise<string>;
+  ): Promise<LlmChatResult>;
 
   chatWithTools(
     system: string,
@@ -37,7 +51,7 @@ export interface LlmClient {
       temperature?: number;
       toolChoice?: { type: 'tool'; name: string };
     },
-  ): Promise<LlmToolCallResult>;
+  ): Promise<LlmToolCallResultWithUsage>;
 }
 
 // ---------------------------------------------------------------------------
@@ -57,6 +71,7 @@ export interface PageExtractionResult {
   pageTitle: string;
   fetchedAt: string;
   fields: PageFieldExtraction[];
+  usage?: LlmUsage;
 }
 
 // ---------------------------------------------------------------------------
@@ -124,6 +139,7 @@ export interface ExtractionInput {
 export interface ExtractionOutput {
   fields: ExtractedFieldValue[];
   pageResults: PageExtractionResult[];
+  usage: LlmUsage;
 }
 
 // ---------------------------------------------------------------------------

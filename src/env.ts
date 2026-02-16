@@ -14,6 +14,7 @@ const envSchema = z.object({
   PUBLIC_SESSION_SECRET: z.string().min(32).optional(),
   LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).optional(),
   ALLOWED_ORIGINS: z.string().optional(),
+  SENTRY_DSN: z.string().url().optional(),
   WEBHOOK_ENCRYPTION_KEY: z.string().length(64).regex(/^[0-9a-f]+$/, 'Must be a 64-char lowercase hex string').optional(),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   PORT: z.coerce.number().default(3000),

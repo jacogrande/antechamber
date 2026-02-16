@@ -7,6 +7,7 @@ import { requireRole } from './middleware/rbac';
 import { ipRateLimit, tenantRateLimit } from './middleware/rate-limit';
 import { publishableKeyMiddleware } from './middleware/publishable-key';
 import health from './routes/health';
+import cron from './routes/cron';
 import auth from './routes/auth';
 import tenantsRoute from './routes/tenants';
 import schemas from './routes/schemas';
@@ -19,6 +20,11 @@ import auditRoute from './routes/audit';
 import { checkDbConnection } from './db/client';
 import type { AppEnv } from './types/app';
 import { createLogger } from './lib/logger';
+import { initSentry } from './lib/sentry';
+import { requestIdMiddleware } from './middleware/request-id';
+
+// Initialize Sentry before anything else (no-op without SENTRY_DSN)
+initSentry();
 
 const log = createLogger('request');
 
@@ -29,6 +35,9 @@ void checkDbConnection();
 export type { AppEnv } from './types/app';
 
 const app = new Hono<AppEnv>();
+
+// Request ID — first middleware so all downstream handlers have it
+app.use('*', requestIdMiddleware);
 
 // Log every request (debug level to avoid high-volume noise in production)
 app.use('*', async (c, next) => {
@@ -98,6 +107,7 @@ app.use('/public/*', publishableKeyMiddleware);
 
 // Public routes (no auth required)
 app.route('/', health);
+app.route('/', cron);
 app.route('/', publicSessionsRoute);
 
 // ---------------------------------------------------------------------------
@@ -106,6 +116,10 @@ app.route('/', publicSessionsRoute);
 app.use('/api/*', async (c, next) => {
   // Skip auth for login endpoint
   if (c.req.path === '/api/auth/login' && c.req.method === 'POST') {
+    return next();
+  }
+  // Skip auth for cron routes (they use CRON_SECRET)
+  if (c.req.path.startsWith('/api/cron/')) {
     return next();
   }
   return authMiddleware(c, next);

@@ -11,10 +11,13 @@ mock.module('@anthropic-ai/sdk', () => {
           const msgs = params.messages as Array<{ content: string }>;
           const userContent = msgs?.[0]?.content ?? '';
 
+          const usage = { input_tokens: 100, output_tokens: 50 };
+
           // Trigger: no tool_use block when __NO_TOOL_USE__ is in the message
           if (userContent.includes('__NO_TOOL_USE__')) {
             return {
               content: [{ type: 'text', text: 'No tool use here' }],
+              usage,
             };
           }
 
@@ -22,6 +25,7 @@ mock.module('@anthropic-ai/sdk', () => {
           if (userContent.includes('__NO_TEXT__')) {
             return {
               content: [],
+              usage,
             };
           }
 
@@ -36,6 +40,7 @@ mock.module('@anthropic-ai/sdk', () => {
                   input: { extractions: [{ key: 'company_name', value: 'Test' }] },
                 },
               ],
+              usage,
             };
           }
           // Text response
@@ -43,6 +48,7 @@ mock.module('@anthropic-ai/sdk', () => {
             content: [
               { type: 'text', text: 'Hello from the mock' },
             ],
+            usage,
           };
         }),
       };
@@ -57,13 +63,14 @@ describe('createAnthropicClient', () => {
     expect(typeof client.chatWithTools).toBe('function');
   });
 
-  test('chat returns text content', async () => {
+  test('chat returns text content with usage', async () => {
     const client = createAnthropicClient('test-key');
     const result = await client.chat(
       'system prompt',
       [{ role: 'user', content: 'Hello' }],
     );
-    expect(result).toBe('Hello from the mock');
+    expect(result.text).toBe('Hello from the mock');
+    expect(result.usage).toEqual({ inputTokens: 100, outputTokens: 50 });
   });
 
   test('chat passes model and options', async () => {
@@ -87,7 +94,7 @@ describe('createAnthropicClient', () => {
     ).rejects.toThrow('text block');
   });
 
-  test('chatWithTools returns tool_use block', async () => {
+  test('chatWithTools returns tool_use block with usage', async () => {
     const client = createAnthropicClient('test-key');
     const result = await client.chatWithTools(
       'system prompt',
@@ -100,6 +107,7 @@ describe('createAnthropicClient', () => {
     );
     expect(result.toolName).toBe('extract_fields');
     expect(result.input).toEqual({ extractions: [{ key: 'company_name', value: 'Test' }] });
+    expect(result.usage).toEqual({ inputTokens: 100, outputTokens: 50 });
   });
 
   test('chatWithTools passes tool_choice option', async () => {
