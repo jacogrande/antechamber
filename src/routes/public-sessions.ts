@@ -271,6 +271,12 @@ export function createPublicSessionsRoute(depsOverride?: PublicSessionsRouteDeps
         });
     } else {
       log.warn('Skipping workflow: deps not configured', { submissionId: submission.id });
+      db.update(submissions)
+        .set({ status: 'failed', updatedAt: new Date() })
+        .where(eq(submissions.id, submission.id))
+        .catch((err) => {
+          log.error('Failed to mark submission as failed', { submissionId: submission.id, error: err instanceof Error ? err.message : String(err) });
+        });
     }
 
     return c.json(

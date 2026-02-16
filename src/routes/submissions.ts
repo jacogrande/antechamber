@@ -88,6 +88,13 @@ export function createSubmissionsRoute(depsOverride?: SubmissionsRouteDeps) {
         });
     } else {
       log.warn('Skipping workflow: deps not configured', { submissionId });
+      const db = depsOverride?.db ?? getDb();
+      db.update(submissions)
+        .set({ status: 'failed', updatedAt: new Date() })
+        .where(eq(submissions.id, submissionId))
+        .catch((err) => {
+          log.error('Failed to mark submission as failed', { submissionId, error: err instanceof Error ? err.message : String(err) });
+        });
     }
   }
 

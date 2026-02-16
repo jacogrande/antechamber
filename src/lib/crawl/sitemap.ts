@@ -6,6 +6,10 @@ import type {
   RobotsResult,
 } from './types';
 import { DEFAULT_CRAWL_CONFIG } from './types';
+import { isSafeUrl } from './url';
+import { createLogger } from '../logger';
+
+const log = createLogger('sitemap');
 
 // ---------------------------------------------------------------------------
 // Extract URLs from a <urlset> element
@@ -53,6 +57,10 @@ export async function parseSitemap(
     const urls: string[] = [];
     for (const childUrl of childUrls) {
       try {
+        if (!await isSafeUrl(childUrl)) {
+          log.warn('Skipping unsafe sitemapindex child URL', { url: childUrl });
+          continue;
+        }
         const res = await fetchFn(childUrl, {
           headers: { 'User-Agent': config.userAgent },
         });
@@ -107,6 +115,10 @@ export async function discoverPages(
 
   for (const sitemapUrl of sitemapSources) {
     try {
+      if (!await isSafeUrl(sitemapUrl)) {
+        log.warn('Skipping unsafe sitemap URL', { url: sitemapUrl });
+        continue;
+      }
       const res = await fetchFn(sitemapUrl, {
         headers: { 'User-Agent': config.userAgent },
       });

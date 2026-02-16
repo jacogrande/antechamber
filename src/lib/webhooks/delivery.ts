@@ -2,6 +2,7 @@ import { eq } from 'drizzle-orm';
 import type { Database } from '../../db/client';
 import { webhookDeliveries } from '../../db/schema';
 import { buildSignatureHeader } from './signing';
+import { isSafeUrl } from '../crawl/url';
 import type { WebhookPayload, WebhookDeliveryResult, WebhookEventType } from './types';
 
 const WEBHOOK_TIMEOUT_MS = 30000; // 30 seconds
@@ -79,6 +80,11 @@ export class WebhookDeliveryService {
     payload: WebhookPayload,
     secret: string,
   ): Promise<WebhookDeliveryResult> {
+    // Re-validate URL at delivery time to prevent DNS rebinding attacks
+    if (!await isSafeUrl(url)) {
+      return { success: false, error: 'Webhook URL failed safety check (DNS rebinding protection)' };
+    }
+
     const body = JSON.stringify(payload);
     const signature = buildSignatureHeader(body, secret);
 

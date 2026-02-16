@@ -49,6 +49,7 @@ export const authMiddleware = createMiddleware<AppEnv>(async (c, next) => {
       const secret = new TextEncoder().encode(env.SUPABASE_JWT_SECRET);
       const result = await jwtVerify(token, secret, {
         algorithms: ['HS256'],
+        audience: 'authenticated',
       });
       payload = result.payload as Record<string, unknown>;
     }

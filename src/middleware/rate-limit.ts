@@ -13,6 +13,9 @@ interface RateLimitEntry {
   resetAt: number;
 }
 
+// NOTE: In-memory store — effective only within a single Vercel Function invocation.
+// For production abuse prevention, migrate to Vercel KV (Redis) or Upstash.
+// The x-forwarded-for header is trustworthy on Vercel (set by edge proxy).
 const store = new Map<string, RateLimitEntry>();
 
 // Periodic cleanup of expired entries to prevent memory leaks

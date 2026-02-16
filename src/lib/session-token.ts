@@ -1,10 +1,18 @@
 import { SignJWT, jwtVerify } from 'jose';
 import { getEnv } from '../env';
 import { UnauthorizedError } from './errors';
+import { createLogger } from './logger';
+
+const log = createLogger('session-token');
+let warnedMissingSecret = false;
 
 function getSecret(): Uint8Array {
   const env = getEnv();
   const secret = env.PUBLIC_SESSION_SECRET ?? env.SUPABASE_JWT_SECRET;
+  if (!env.PUBLIC_SESSION_SECRET && !warnedMissingSecret) {
+    warnedMissingSecret = true;
+    log.warn('PUBLIC_SESSION_SECRET not set — falling back to SUPABASE_JWT_SECRET. Set a dedicated secret for production.');
+  }
   return new TextEncoder().encode(secret);
 }
 

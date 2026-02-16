@@ -41,6 +41,23 @@ export function normalizeUrl(raw: string): string {
 const ALLOWED_PROTOCOLS = new Set(['http:', 'https:']);
 const ALLOWED_PORTS = new Set(['', '80', '443']);
 
+/**
+ * Lightweight SSRF guard — returns false for URLs that use private IPs,
+ * disallowed protocols, or non-standard ports.  Used to validate URLs
+ * discovered at runtime (sitemaps, webhook targets, etc.).
+ */
+export async function isSafeUrl(raw: string): Promise<boolean> {
+  try {
+    const url = new URL(raw);
+    if (!ALLOWED_PROTOCOLS.has(url.protocol)) return false;
+    if (!ALLOWED_PORTS.has(url.port)) return false;
+    const result = await dns.lookup(url.hostname);
+    return !isPrivateIp(result.address);
+  } catch {
+    return false;
+  }
+}
+
 export async function validateUrl(raw: string): Promise<ValidatedUrl> {
   let url: URL;
   try {
