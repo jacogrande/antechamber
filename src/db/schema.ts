@@ -13,7 +13,11 @@ export const auditEventEnum = pgEnum('audit_event', [
   'webhook.registered',
   'webhook.delivery_succeeded',
   'webhook.delivery_failed',
+  'publishable_key.created',
+  'publishable_key.revoked',
 ]);
+
+export const keyEnvironmentEnum = pgEnum('key_environment', ['live', 'test']);
 
 export const tenants = pgTable('tenants', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -170,6 +174,18 @@ export const webhookDeliveries = pgTable(
   (t) => [index('webhook_deliveries_pending_retry_idx').on(t.status, t.nextRetryAt)],
 );
 
+export const publishableKeys = pgTable('publishable_keys', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  tenantId: uuid('tenant_id').notNull().references(() => tenants.id),
+  name: text('name').notNull(),
+  keyHash: text('key_hash').notNull().unique(),
+  keyPrefix: text('key_prefix').notNull(),
+  environment: keyEnvironmentEnum('environment').notNull(),
+  revokedAt: timestamp('revoked_at', { withTimezone: true }),
+  lastUsedAt: timestamp('last_used_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const auditLogs = pgTable('audit_logs', {
   id: uuid('id').primaryKey().defaultRandom(),
   tenantId: uuid('tenant_id')
@@ -183,4 +199,7 @@ export const auditLogs = pgTable('audit_logs', {
   ipAddress: text('ip_address'),
   userAgent: text('user_agent'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-});
+}, (t) => [
+  index('audit_logs_tenant_created_idx').on(t.tenantId, t.createdAt),
+  index('audit_logs_tenant_event_idx').on(t.tenantId, t.event),
+]);
