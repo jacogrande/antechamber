@@ -1,6 +1,9 @@
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres, { type Sql } from 'postgres';
 import * as schema from './schema';
+import { createLogger } from '../lib/logger';
+
+const log = createLogger('db');
 
 let db: ReturnType<typeof createDb> | null = null;
 let sqlClient: Sql | null = null;
@@ -20,16 +23,9 @@ function createDb(connectionString: string) {
  */
 function buildDatabaseUrl(url: string): string {
   const dbPassword = process.env.DB_PASSWORD;
-  console.log('[DB] Raw DATABASE_URL:', url);
-  console.log('[DB] DB_PASSWORD:', dbPassword);
-  console.log('[DB] DB_PASSWORD length:', dbPassword?.length);
-  console.log('[DB] URL contains [password]:', url.includes('[password]'));
   if (dbPassword && url.includes('[password]')) {
     const encodedPassword = encodeURIComponent(dbPassword);
-    console.log('[DB] Encoded password:', encodedPassword);
-    const result = url.replace('[password]', encodedPassword);
-    console.log('[DB] Final URL:', result);
-    return result;
+    return url.replace('[password]', encodedPassword);
   }
   return url;
 }
@@ -53,15 +49,15 @@ export async function checkDbConnection(): Promise<boolean> {
     // Ensure db is initialized
     getDb();
     if (!sqlClient) {
-      console.error('[DB] SQL client not initialized');
+      log.error('SQL client not initialized');
       return false;
     }
-    console.log('[DB] Testing connection...');
+    log.debug('Testing connection...');
     const result = await sqlClient`SELECT NOW() as now`;
-    console.log('[DB] Connection successful! Server time:', result[0]?.now);
+    log.debug('Connection successful', { serverTime: result[0]?.now });
     return true;
   } catch (error) {
-    console.error('[DB] Connection failed:', error);
+    log.error('Connection failed', { error: error instanceof Error ? error.message : String(error) });
     return false;
   }
 }

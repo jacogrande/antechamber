@@ -6,6 +6,9 @@ import { getEnv } from '../env';
 import { getDb } from '../db/client';
 import { users } from '../db/schema';
 import { UnauthorizedError } from '../lib/errors';
+import { createLogger } from '../lib/logger';
+
+const log = createLogger('auth');
 
 // Cache the JWKS client
 let jwksClient: ReturnType<typeof createRemoteJWKSet> | null = null;
@@ -69,7 +72,7 @@ export const authMiddleware = createMiddleware<AppEnv>(async (c, next) => {
     await next();
   } catch (err) {
     if (err instanceof UnauthorizedError) throw err;
-    console.error('[AUTH] Token verification failed:', err);
+    log.warn('Token verification failed', { error: err instanceof Error ? err.message : String(err), errorType: err instanceof Error ? err.name : 'unknown' });
     throw new UnauthorizedError('Invalid or expired token');
   }
 });

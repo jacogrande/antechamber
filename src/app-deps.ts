@@ -3,6 +3,9 @@ import { getEnv } from './env';
 import { StubStorageClient, VercelBlobStorageClient } from './lib/storage';
 import { createAnthropicClient } from './lib/extraction';
 import type { WorkflowDeps } from './lib/workflow/types';
+import { createLogger } from './lib/logger';
+
+const log = createLogger('app-deps');
 
 /**
  * Get workflow dependencies from environment configuration.
@@ -12,13 +15,10 @@ import type { WorkflowDeps } from './lib/workflow/types';
 export function getWorkflowDeps(): WorkflowDeps | null {
   const env = getEnv();
 
-  console.log('[app-deps] Initializing workflow dependencies...');
-  console.log('[app-deps] ANTHROPIC_API_KEY:', env.ANTHROPIC_API_KEY ? 'configured' : 'missing');
+  log.debug('Checking workflow dependencies...');
 
   if (!env.ANTHROPIC_API_KEY) {
-    console.warn(
-      '[app-deps] ANTHROPIC_API_KEY not configured — workflow execution disabled',
-    );
+    log.warn('ANTHROPIC_API_KEY not configured — workflow execution disabled');
     return null;
   }
 
@@ -29,12 +29,10 @@ export function getWorkflowDeps(): WorkflowDeps | null {
     : new StubStorageClient();
 
   if (!env.BLOB_READ_WRITE_TOKEN) {
-    console.warn(
-      '[app-deps] BLOB_READ_WRITE_TOKEN not configured — using in-memory stub storage',
-    );
+    log.warn('BLOB_READ_WRITE_TOKEN not configured — using in-memory stub storage');
   }
 
-  console.log('[app-deps] Workflow dependencies initialized successfully');
+  log.info('Workflow dependencies initialized successfully');
   return {
     db: getDb(),
     storage,

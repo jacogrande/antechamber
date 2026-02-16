@@ -12,6 +12,9 @@ import {
   buildExtractionTool,
 } from './prompt';
 import { parseExtractionResult } from './parser';
+import { createLogger } from '../logger';
+
+const log = createLogger('extraction:llm');
 
 /**
  * Extract fields from a single page using the LLM.
@@ -26,7 +29,7 @@ export async function extractFieldsFromPage(
   const cfg = { ...DEFAULT_EXTRACTION_CONFIG, ...config };
 
   if (page.wordCount < cfg.minWordCount) {
-    console.log(`[llm] Skipping page (${page.wordCount} words < ${cfg.minWordCount} min): ${page.url}`);
+    log.debug('Skipping page (too few words)', { url: page.url, wordCount: page.wordCount, minWordCount: cfg.minWordCount });
     return {
       url: page.url,
       pageTitle: page.title,
@@ -35,7 +38,7 @@ export async function extractFieldsFromPage(
     };
   }
 
-  console.log(`[llm] Extracting from page: ${page.url} (${page.wordCount} words)`);
+  log.debug('Extracting from page', { url: page.url, wordCount: page.wordCount });
   const llmStart = Date.now();
 
   const system = buildSystemPrompt();
@@ -57,7 +60,7 @@ export async function extractFieldsFromPage(
   const llmTime = Date.now() - llmStart;
   const parsed = parseExtractionResult(result.input, fields);
   const foundFields = parsed.filter(f => f.confidence > 0).length;
-  console.log(`[llm] LLM response in ${llmTime}ms, found ${foundFields}/${fields.length} fields`);
+  log.info('LLM response', { url: page.url, elapsed: llmTime, found: foundFields, total: fields.length });
 
   return {
     url: page.url,

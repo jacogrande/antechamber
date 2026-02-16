@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { isRegexSafe } from '../lib/validation/regex';
 
 // --- Auth ---
 
@@ -84,15 +85,18 @@ export const fieldDefinitionSchema = z
       if (f.validation?.regex) {
         try {
           new RegExp(f.validation.regex);
-          return true;
         } catch {
+          return false;
+        }
+        // Check for catastrophic backtracking (ReDoS)
+        if (!isRegexSafe(f.validation.regex)) {
           return false;
         }
       }
       return true;
     },
     (f) => ({
-      message: `validation.regex is not a valid regular expression: ${f.validation?.regex}`,
+      message: `validation.regex is invalid or potentially unsafe (ReDoS): ${f.validation?.regex}`,
     }),
   )
   .refine(

@@ -6,24 +6,9 @@ import { createTenantRequestSchema } from '../types/api';
 import { ValidationError, ConflictError } from '../lib/errors';
 import { isUniqueViolation } from '../lib/utils/db';
 import { eq } from 'drizzle-orm';
+import { generateSlug } from '../lib/utils/slug';
 
 const tenantsRoute = new Hono<AppEnv>();
-
-/**
- * Generate a URL-friendly slug from a name.
- * Converts to lowercase, replaces spaces/special chars with hyphens,
- * removes consecutive hyphens, and trims leading/trailing hyphens.
- *
- * NOTE: This logic is duplicated in client/src/pages/setup/OrganizationSetup.tsx
- * for client-side preview. Keep them in sync if modifying.
- */
-function generateSlug(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '');
-}
 
 tenantsRoute.post('/api/tenants', async (c) => {
   const body = await c.req.json();

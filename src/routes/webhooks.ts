@@ -9,6 +9,10 @@ import { registerWebhookRequestSchema } from '../types/api';
 import { ValidationError, NotFoundError } from '../lib/errors';
 import { generateWebhookSecret, validateWebhookUrl } from '../lib/webhooks';
 import { AuditService } from '../lib/audit';
+import { encrypt } from '../lib/crypto';
+import { createLogger } from '../lib/logger';
+
+const log = createLogger('webhooks');
 
 export interface WebhooksRouteDeps {
   db?: Database;
@@ -45,13 +49,20 @@ export function createWebhooksRoute(depsOverride?: WebhooksRouteDeps) {
 
     // Generate a secure secret for webhook signing
     const secret = generateWebhookSecret();
+    let encryptedSecret: string;
+    if (process.env.WEBHOOK_ENCRYPTION_KEY) {
+      encryptedSecret = encrypt(secret);
+    } else {
+      log.warn('Storing webhook secret as plaintext — WEBHOOK_ENCRYPTION_KEY not configured');
+      encryptedSecret = secret;
+    }
 
     const [webhook] = await db
       .insert(webhooks)
       .values({
         tenantId,
         endpointUrl: parsed.data.endpointUrl,
-        secret,
+        secret: encryptedSecret,
         events: parsed.data.events,
         isActive: true,
       })

@@ -6,6 +6,9 @@ import type {
   RobotsResult,
 } from './types';
 import { DEFAULT_CRAWL_CONFIG } from './types';
+import { createLogger } from '../logger';
+
+const log = createLogger('fetch');
 
 // ---------------------------------------------------------------------------
 // Internal: Semaphore for concurrency control
@@ -70,19 +73,19 @@ export async function fetchPage(
 
     // Skip non-success responses
     if (!response.ok) {
-      console.log(`[fetch] ${url} → ${response.status} (${elapsed}ms) [skipped: non-2xx]`);
+      log.debug('Skipped non-2xx', { url, status: response.status, elapsed });
       return null;
     }
 
     // Check Content-Type — only accept HTML
     const contentType = response.headers.get('content-type') ?? '';
     if (!contentType.includes('text/html')) {
-      console.log(`[fetch] ${url} → ${response.status} (${elapsed}ms) [skipped: ${contentType}]`);
+      log.debug('Skipped non-HTML', { url, status: response.status, contentType, elapsed });
       return null;
     }
 
     const html = await response.text();
-    console.log(`[fetch] ${url} → ${response.status} (${elapsed}ms, ${html.length} bytes)`);
+    log.debug('Fetched', { url, status: response.status, elapsed, bytes: html.length });
 
     return {
       url,
@@ -94,7 +97,7 @@ export async function fetchPage(
   } catch (err) {
     const elapsed = Date.now() - startTime;
     const errMsg = err instanceof Error ? err.message : String(err);
-    console.log(`[fetch] ${url} → ERROR (${elapsed}ms): ${errMsg}`);
+    log.warn('Fetch error', { url, elapsed, error: errMsg });
     return null;
   }
 }

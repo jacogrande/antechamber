@@ -11,6 +11,9 @@ import { discoverPages } from './sitemap';
 import { fetchPages } from './fetcher';
 import { extractContent } from './extractor';
 import { storePageArtifacts } from './artifacts';
+import { createLogger } from '../logger';
+
+const log = createLogger('crawl');
 
 // ---------------------------------------------------------------------------
 // Pipeline orchestrator
@@ -23,32 +26,32 @@ export async function runCrawlPipeline(
   config: CrawlConfig = DEFAULT_CRAWL_CONFIG,
   fetchFn: FetchFn = fetch,
 ): Promise<CrawlPipelineResult> {
-  console.log(`[crawl] Starting pipeline for ${rawUrl}`);
+  log.info('Starting pipeline', { url: rawUrl, runId });
 
   // 1. Validate the input URL (throws ValidationError on failure)
-  console.log('[crawl] Validating URL...');
+  log.debug('Validating URL...');
   const validated = await validateUrl(rawUrl);
-  console.log(`[crawl] URL validated, origin: ${validated.origin}`);
+  log.debug('URL validated', { origin: validated.origin });
 
   // 2. Fetch + parse robots.txt
-  console.log('[crawl] Fetching robots.txt...');
+  log.debug('Fetching robots.txt...');
   const robots = await fetchRobots(validated.origin, config, fetchFn);
-  console.log(`[crawl] robots.txt loaded (${robots.isAllowed(validated.origin) ? 'crawling allowed' : 'restrictions apply'})`);
+  log.debug('robots.txt loaded', { allowed: robots.isAllowed(validated.origin) });
 
-  // 3. Discover pages (sitemap → heuristic fallback)
-  console.log('[crawl] Discovering pages (sitemap + heuristics)...');
+  // 3. Discover pages (sitemap + heuristic fallback)
+  log.debug('Discovering pages (sitemap + heuristics)...');
   const discoveredPages = await discoverPages(
     validated.origin,
     robots,
     config,
     fetchFn,
   );
-  console.log(`[crawl] Discovered ${discoveredPages.length} pages`);
+  log.info('Discovered pages', { count: discoveredPages.length });
 
   // 4. Fetch pages (respects robots, concurrency, rate limiting)
-  console.log(`[crawl] Fetching pages (max ${config.maxPages}, concurrency ${config.concurrency})...`);
+  log.debug('Fetching pages', { maxPages: config.maxPages, concurrency: config.concurrency });
   const fetchedPages = await fetchPages(discoveredPages, robots, config, fetchFn);
-  console.log(`[crawl] Fetched ${fetchedPages.length} pages successfully`);
+  log.info('Fetched pages', { count: fetchedPages.length });
 
   // Track which URLs were discovered but not fetched
   const fetchedUrls = new Set(fetchedPages.map((p) => p.url));
@@ -57,17 +60,17 @@ export async function runCrawlPipeline(
     .filter((url) => !fetchedUrls.has(url));
 
   if (skippedUrls.length > 0) {
-    console.log(`[crawl] Skipped ${skippedUrls.length} URLs`);
+    log.debug('Skipped URLs', { count: skippedUrls.length });
   }
 
   // 5. Extract content from each fetched page
-  console.log('[crawl] Extracting content from pages...');
+  log.debug('Extracting content from pages...');
   const extractedContent = fetchedPages.map(extractContent);
   const totalWords = extractedContent.reduce((sum, c) => sum + c.wordCount, 0);
-  console.log(`[crawl] Extracted ${totalWords} total words from ${extractedContent.length} pages`);
+  log.info('Extracted content', { totalWords, pageCount: extractedContent.length });
 
   // 6. Store artifacts for each page
-  console.log('[crawl] Storing artifacts...');
+  log.debug('Storing artifacts...');
   const artifactKeys: { url: string; rawHtml: string; text: string }[] = [];
   for (let i = 0; i < fetchedPages.length; i++) {
     const keys = await storePageArtifacts(
@@ -82,9 +85,9 @@ export async function runCrawlPipeline(
       text: keys.text,
     });
   }
-  console.log(`[crawl] Stored ${artifactKeys.length} page artifacts`);
+  log.debug('Stored page artifacts', { count: artifactKeys.length });
 
-  console.log('[crawl] Pipeline complete');
+  log.info('Pipeline complete');
   return {
     origin: validated.origin,
     discoveredPages,

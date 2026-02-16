@@ -52,6 +52,7 @@ interface StoredWebhook {
   secret: string;
   events: string[];
   isActive: boolean;
+  simulateFailure?: boolean;
 }
 
 interface StoredWorkflowRun {
@@ -83,7 +84,6 @@ function createSubmissionsTestApp(options: {
     ? [...options.workflowRuns]
     : [];
   const storedWebhooks: StoredWebhook[] = options.webhooks ? [...options.webhooks] : [];
-  let webhooksQueued = 0;
 
   // Generate valid UUIDs for new submissions/runs
   let nextSubNum = storedSubmissions.length + 1;
@@ -303,11 +303,19 @@ function createSubmissionsTestApp(options: {
     submission.fields = fields;
     submission.editHistory = editHistory;
 
-    // Queue webhooks
+    // Deliver webhooks (simulates sync delivery like production)
     const activeWebhooks = storedWebhooks.filter(
       (w) => w.tenantId === tenantId && w.isActive && w.events.includes('submission.confirmed'),
     );
-    webhooksQueued = activeWebhooks.length;
+    let webhooksDelivered = 0;
+    let webhooksFailed = 0;
+    for (const webhook of activeWebhooks) {
+      if (webhook.simulateFailure) {
+        webhooksFailed++;
+      } else {
+        webhooksDelivered++;
+      }
+    }
 
     return c.json({
       submission: {
@@ -318,7 +326,8 @@ function createSubmissionsTestApp(options: {
         fields,
         editHistory,
       },
-      webhooksQueued,
+      webhooksDelivered,
+      webhooksFailed,
     });
   });
 
@@ -949,7 +958,45 @@ describe('POST /api/submissions/:submissionId/confirm', () => {
 
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body.webhooksQueued).toBe(1);
+    expect(body.webhooksDelivered).toBe(1);
+    expect(body.webhooksFailed).toBe(0);
+  });
+
+  it('reports failed webhook deliveries', async () => {
+    const app = createSubmissionsTestApp({
+      schemas: [EXISTING_SCHEMA],
+      versions: [EXISTING_VERSION],
+      submissions: [{ ...EXISTING_SUBMISSION }],
+      workflowRuns: [EXISTING_WORKFLOW_RUN],
+      webhooks: [
+        {
+          id: 'webhook-1',
+          tenantId: 'tenant-1',
+          endpointUrl: 'https://example.com/webhook',
+          secret: 'secret',
+          events: ['submission.confirmed'],
+          isActive: true,
+        },
+        {
+          id: 'webhook-2',
+          tenantId: 'tenant-1',
+          endpointUrl: 'https://failing.example.com/webhook',
+          secret: 'secret',
+          events: ['submission.confirmed'],
+          isActive: true,
+          simulateFailure: true,
+        },
+      ],
+    });
+
+    const res = await confirmSubmission(app, SUBMISSION_UUID, {
+      confirmedBy: 'customer',
+    });
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.webhooksDelivered).toBe(1);
+    expect(body.webhooksFailed).toBe(1);
   });
 });
 

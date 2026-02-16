@@ -254,14 +254,7 @@ export function createSchemasRoute(depsOverride?: SchemasRouteDeps) {
 
     // Audit log schema deletion
     const audit = getAuditService(db);
-    await audit.log({
-      tenantId,
-      userId,
-      event: 'schema.created', // Using existing event type for now
-      resourceType: 'schema',
-      resourceId: schemaId,
-      details: { action: 'deleted', name: schema.name },
-    });
+    await audit.logSchemaDeleted(tenantId, schemaId, userId, { name: schema.name });
 
     return c.json({ success: true });
   });

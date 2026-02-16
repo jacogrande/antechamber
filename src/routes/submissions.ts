@@ -23,6 +23,10 @@ import type { WebhookPayload } from '../lib/webhooks';
 import { generateCsv } from '../lib/export/csv';
 import { generateContextPack } from '../lib/export/context-pack';
 import { getWorkflowDeps } from '../app-deps';
+import { createLogger } from '../lib/logger';
+import { isEncrypted, decrypt } from '../lib/crypto';
+
+const log = createLogger('submissions');
 
 // ---------------------------------------------------------------------------
 // Route dependencies - extends workflow deps with route-specific services
@@ -54,6 +58,39 @@ export function createSubmissionsRoute(depsOverride?: SubmissionsRouteDeps) {
     if (!_webhookService) _webhookService = new WebhookDeliveryService(db, fetch);
     return _webhookService;
   };
+  /** Fire-and-forget workflow launch. Marks submission as failed on error. */
+  function launchWorkflow(submissionId: string, workflowRunId: string, label: string): void {
+    const storage = depsOverride?.storage;
+    const llmClient = depsOverride?.llmClient;
+
+    if (storage && llmClient) {
+      const deps: WorkflowDeps = {
+        db: depsOverride?.db ?? getDb(),
+        storage,
+        llmClient,
+        fetchFn: depsOverride?.fetchFn,
+      };
+      const runner = new WorkflowRunner(deps);
+      log.info(label, { submissionId, workflowRunId });
+      runner
+        .execute(generateOnboardingDraft, submissionId, workflowRunId)
+        .catch(async (err) => {
+          log.error('Workflow failed', { submissionId, error: err instanceof Error ? err.message : String(err) });
+          try {
+            const db = depsOverride?.db ?? getDb();
+            await db
+              .update(submissions)
+              .set({ status: 'failed', updatedAt: new Date() })
+              .where(eq(submissions.id, submissionId));
+          } catch (updateErr) {
+            log.error('Failed to update submission status', { submissionId, error: updateErr instanceof Error ? updateErr.message : String(updateErr) });
+          }
+        });
+    } else {
+      log.warn('Skipping workflow: deps not configured', { submissionId });
+    }
+  }
+
   const route = new Hono<AppEnv>();
 
   route.post('/api/submissions', async (c) => {
@@ -140,51 +177,8 @@ export function createSubmissionsRoute(depsOverride?: SubmissionsRouteDeps) {
       websiteUrl: parsed.data.websiteUrl,
     });
 
-    // Build workflow deps from overrides or defaults
-    const storage = depsOverride?.storage;
-    const llmClient = depsOverride?.llmClient;
-
-    // Only launch workflow if we have all required deps
-    // In production, these should be wired via depsOverride at app startup
-    console.log('[workflow] Checking deps:', { hasStorage: !!storage, hasLlmClient: !!llmClient });
-    if (storage && llmClient) {
-      const deps: WorkflowDeps = {
-        db: depsOverride?.db ?? getDb(),
-        storage,
-        llmClient,
-        fetchFn: depsOverride?.fetchFn,
-      };
-      const runner = new WorkflowRunner(deps);
-      console.log(`[workflow] Starting workflow for submission ${submission.id}`);
-      runner
-        .execute(generateOnboardingDraft, submission.id, workflowRun.id)
-        .catch(async (err) => {
-          console.error(
-            `[workflow] Failed for submission ${submission.id}:`,
-            err,
-          );
-          // Update submission status to reflect workflow failure
-          try {
-            await db
-              .update(submissions)
-              .set({ status: 'failed', updatedAt: new Date() })
-              .where(eq(submissions.id, submission.id));
-          } catch (updateErr) {
-            console.error(
-              `[workflow] Failed to update submission ${submission.id} status:`,
-              updateErr,
-            );
-          }
-        });
-    } else {
-      // Missing deps — log warning but don't crash
-      // The workflow run stays in 'pending' status and can be retried later
-      console.warn(
-        `[workflow] Skipping auto-launch for submission ${submission.id}: ` +
-          'storage or llmClient not configured. ' +
-          'Workflow run created with status=pending for manual/retry trigger.',
-      );
-    }
+    // Fire-and-forget workflow execution
+    launchWorkflow(submission.id, workflowRun.id, 'Starting workflow');
 
     return c.json(
       {
@@ -322,9 +316,8 @@ export function createSubmissionsRoute(depsOverride?: SubmissionsRouteDeps) {
     }));
 
     // Transform fields to frontend format
-    console.log(`[submission-detail] Raw fields from DB:`, JSON.stringify(submission.fields));
     const rawFields = parseExtractedFields(submission.fields);
-    console.log(`[submission-detail] Parsed fields:`, rawFields.length);
+    log.debug('Parsed submission fields', { submissionId, fieldCount: rawFields.length });
     const extractedFields = rawFields.map((f) => {
       const def = fieldDefMap.get(f.key);
       const confidence = f.confidence ?? 0;
@@ -556,16 +549,23 @@ export function createSubmissionsRoute(depsOverride?: SubmissionsRouteDeps) {
     );
 
     const deliveryResults = await Promise.all(
-      webhooksToDeliver.map((webhook) =>
-        webhookService.deliverImmediately(
+      webhooksToDeliver.map((webhook) => {
+        let signingSecret: string;
+        try {
+          signingSecret = isEncrypted(webhook.secret) ? decrypt(webhook.secret) : webhook.secret;
+        } catch (err) {
+          log.error('Failed to decrypt webhook secret', { webhookId: webhook.id, error: err instanceof Error ? err.message : String(err) });
+          return { success: false, deliveryId: '', error: 'Decryption failed' };
+        }
+        return webhookService.deliverImmediately(
           webhook.id,
           submissionId,
           'submission.confirmed',
           webhookPayload,
           webhook.endpointUrl,
-          webhook.secret,
-        ),
-      ),
+          signingSecret,
+        );
+      }),
     );
 
     for (let i = 0; i < deliveryResults.length; i++) {
@@ -574,9 +574,7 @@ export function createSubmissionsRoute(depsOverride?: SubmissionsRouteDeps) {
         webhooksDelivered++;
       } else {
         webhooksFailed++;
-        console.warn(
-          `[webhook] Delivery failed for webhook ${webhooksToDeliver[i].id}: ${result.error}`,
-        );
+        log.warn('Webhook delivery failed', { webhookId: webhooksToDeliver[i].id, error: result.error });
       }
     }
 
@@ -782,6 +780,84 @@ export function createSubmissionsRoute(depsOverride?: SubmissionsRouteDeps) {
     );
 
     return c.json(contextPack);
+  });
+
+  // POST /api/submissions/:submissionId/retry — Retry a failed submission
+  route.post('/api/submissions/:submissionId/retry', async (c) => {
+    const submissionId = c.req.param('submissionId');
+
+    // Validate UUID format
+    const uuidResult = z.string().uuid().safeParse(submissionId);
+    if (!uuidResult.success) {
+      throw new ValidationError('Invalid submission ID format');
+    }
+
+    const tenantId = c.get('tenantId');
+    const userId = c.get('user')?.id;
+    const db = depsOverride?.db ?? getDb();
+
+    // Load submission and verify ownership
+    const [submission] = await db
+      .select()
+      .from(submissions)
+      .where(and(eq(submissions.id, submissionId), eq(submissions.tenantId, tenantId)));
+
+    if (!submission) {
+      throw new NotFoundError('Submission not found');
+    }
+
+    if (submission.status !== 'failed') {
+      throw new ValidationError('Only failed submissions can be retried');
+    }
+
+    // Check for existing pending/running workflow run to prevent duplicate runs
+    const [existingRun] = await db
+      .select({ id: workflowRuns.id, status: workflowRuns.status })
+      .from(workflowRuns)
+      .where(eq(workflowRuns.submissionId, submissionId))
+      .orderBy(desc(workflowRuns.createdAt))
+      .limit(1);
+
+    if (existingRun && (existingRun.status === 'pending' || existingRun.status === 'running')) {
+      throw new ValidationError('A workflow run is already in progress for this submission');
+    }
+
+    // Reset submission and create new workflow run in a transaction
+    const workflowRun = await db.transaction(async (tx) => {
+      await tx
+        .update(submissions)
+        .set({ status: 'pending', updatedAt: new Date() })
+        .where(eq(submissions.id, submissionId));
+
+      const [run] = await tx
+        .insert(workflowRuns)
+        .values({
+          submissionId,
+          workflowName: generateOnboardingDraft.name,
+          status: 'pending',
+          steps: [],
+        })
+        .returning();
+
+      return run;
+    });
+
+    // Audit log
+    const audit = getAuditService(db);
+    await audit.logSubmissionRetried(tenantId, submissionId, userId, {
+      workflowRunId: workflowRun.id,
+    });
+
+    // Fire-and-forget workflow execution
+    launchWorkflow(submissionId, workflowRun.id, 'Retrying workflow');
+
+    return c.json(
+      {
+        submissionId,
+        workflowRunId: workflowRun.id,
+      },
+      202,
+    );
   });
 
   return route;

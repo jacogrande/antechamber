@@ -18,6 +18,9 @@ import statsRoute from './routes/stats';
 import auditRoute from './routes/audit';
 import { checkDbConnection } from './db/client';
 import type { AppEnv } from './types/app';
+import { createLogger } from './lib/logger';
+
+const log = createLogger('request');
 
 // Check database connection on startup
 void checkDbConnection();
@@ -27,9 +30,9 @@ export type { AppEnv } from './types/app';
 
 const app = new Hono<AppEnv>();
 
-// Debug: log every request
+// Log every request (debug level to avoid high-volume noise in production)
 app.use('*', async (c, next) => {
-  console.log(`[REQUEST] ${c.req.method} ${c.req.path}`);
+  log.debug('Incoming request', { method: c.req.method, path: c.req.path });
   await next();
 });
 
@@ -127,6 +130,9 @@ app.post('/api/webhooks', tenantRateLimit(10, 3_600_000));
 app.post('/api/schemas', requireRole('editor'));
 app.post('/api/schemas/:id/versions', requireRole('editor'));
 app.delete('/api/schemas/:schemaId', requireRole('editor'));
+
+// Submissions: editor+ can retry failed submissions
+app.post('/api/submissions/:id/retry', requireRole('editor'));
 
 // Webhooks: admin only for registration/deletion
 app.post('/api/webhooks', requireRole('admin'));

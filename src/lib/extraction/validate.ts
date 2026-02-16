@@ -1,5 +1,9 @@
 import type { FieldDefinition, ExtractedFieldValue } from '../../types/domain';
 import type { ValidationIssue } from './types';
+import { safeRegexTest } from '../validation/regex';
+import { createLogger } from '../logger';
+
+const log = createLogger('extraction:validate');
 
 /**
  * Validate a single extracted field value against its schema definition.
@@ -77,8 +81,11 @@ export function validateField(
 
     if (validation?.regex) {
       try {
-        const regex = new RegExp(validation.regex);
-        if (!regex.test(value)) {
+        const { matched, timedOut } = safeRegexTest(validation.regex, value);
+        if (timedOut) {
+          // Regex took too long — possible ReDoS pattern, skip validation
+          log.warn('Regex validation timed out', { key: field.key, pattern: validation.regex });
+        } else if (!matched) {
           issues.push({
             key: field.key,
             type: 'regex',

@@ -11,9 +11,7 @@ import { ValidationError, UnauthorizedError } from '../lib/errors';
 const auth = new Hono<AppEnv>();
 
 auth.post('/api/auth/login', async (c) => {
-  console.log('[AUTH] Login request received');
   const body = await c.req.json();
-  console.log('[AUTH] Email:', body.email);
   const parsed = loginRequestSchema.safeParse(body);
 
   if (!parsed.success) {
@@ -22,12 +20,9 @@ auth.post('/api/auth/login', async (c) => {
 
   const { email, password } = parsed.data;
   const env = getEnv();
-  console.log('[AUTH] Supabase URL:', env.SUPABASE_URL);
 
   const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_ANON_KEY);
-  console.log('[AUTH] Calling Supabase signInWithPassword...');
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-  console.log('[AUTH] Supabase response - error:', error?.message, 'hasSession:', !!data.session);
 
   if (error || !data.session) {
     throw new UnauthorizedError('Invalid email or password');

@@ -267,6 +267,17 @@ describe('POST /api/schemas', () => {
     expect(res.status).toBe(400);
   });
 
+  it('rejects ReDoS-vulnerable regex patterns → 400', async () => {
+    const app = createSchemaTestApp();
+    const res = await postSchemas(app, {
+      name: 'Test',
+      fields: [{ ...VALID_FIELD, validation: { regex: '(a+)+b' } }],
+    });
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error.details.fieldErrors.fields[0]).toContain('ReDoS');
+  });
+
   it('rejects minLen > maxLen → 400', async () => {
     const app = createSchemaTestApp();
     const res = await postSchemas(app, {

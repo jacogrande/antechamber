@@ -10,6 +10,7 @@ import type {
 } from './types';
 import { DEFAULT_RETRY_POLICY } from './types';
 import { parseStepRecords, type StepRecord } from '../validation';
+import { createLogger } from '../logger';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -72,8 +73,9 @@ export class WorkflowRunner {
     const { db } = this.deps;
     const stepOutputs = new Map<string, unknown>();
 
-    console.log(`[workflow:${workflow.name}] Starting execution for submission ${submissionId}`);
-    console.log(`[workflow:${workflow.name}] Steps: ${workflow.steps.map(s => s.name).join(' → ')}`);
+    const log = createLogger(`workflow:${workflow.name}`);
+    log.info('Starting execution', { submissionId, runId, stepCount: workflow.steps.length });
+    log.debug('Workflow steps', { steps: workflow.steps.map(s => s.name) });
 
     // Mark run as running
     await db
@@ -100,7 +102,7 @@ export class WorkflowRunner {
         return stepOutputs.get(stepName) as T;
       },
       log: (message: string) => {
-        console.log(`[workflow:${workflow.name}:${runId}] ${message}`);
+        log.debug(message, { runId });
       },
     };
 
@@ -110,7 +112,7 @@ export class WorkflowRunner {
       }
 
       // All steps completed — mark run as completed
-      console.log(`[workflow:${workflow.name}] All steps completed successfully for submission ${submissionId}`);
+      log.info('All steps completed successfully', { submissionId });
       await db
         .update(workflowRuns)
         .set({
@@ -123,7 +125,7 @@ export class WorkflowRunner {
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : String(err);
-      console.error(`[workflow:${workflow.name}] Failed for submission ${submissionId}:`, errorMessage);
+      log.error('Workflow failed', { submissionId, error: errorMessage });
       await db
         .update(workflowRuns)
         .set({

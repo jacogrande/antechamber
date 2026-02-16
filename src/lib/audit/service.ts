@@ -34,6 +34,22 @@ export class AuditService {
     });
   }
 
+  async logSchemaDeleted(
+    tenantId: string,
+    schemaId: string,
+    userId: string,
+    details?: Record<string, unknown>,
+  ): Promise<void> {
+    await this.log({
+      tenantId,
+      userId,
+      event: 'schema.deleted',
+      resourceType: 'schema',
+      resourceId: schemaId,
+      details,
+    });
+  }
+
   async logSchemaVersionCreated(
     tenantId: string,
     schemaId: string,
@@ -100,6 +116,22 @@ export class AuditService {
     });
   }
 
+  async logSubmissionRetried(
+    tenantId: string,
+    submissionId: string,
+    userId: string | undefined,
+    details?: Record<string, unknown>,
+  ): Promise<void> {
+    await this.log({
+      tenantId,
+      userId,
+      event: 'submission.retried',
+      resourceType: 'submission',
+      resourceId: submissionId,
+      details,
+    });
+  }
+
   async logWebhookRegistered(
     tenantId: string,
     webhookId: string,
@@ -145,6 +177,36 @@ export class AuditService {
       resourceType: 'webhook',
       resourceId: webhookId,
       details: { submissionId, deliveryId, error },
+    });
+  }
+
+  async logPublishableKeyCreated(
+    tenantId: string,
+    keyId: string,
+    userId: string,
+    details?: Record<string, unknown>,
+  ): Promise<void> {
+    await this.log({
+      tenantId,
+      userId,
+      event: 'publishable_key.created',
+      resourceType: 'publishable_key',
+      resourceId: keyId,
+      details,
+    });
+  }
+
+  async logPublishableKeyRevoked(
+    tenantId: string,
+    keyId: string,
+    userId: string,
+  ): Promise<void> {
+    await this.log({
+      tenantId,
+      userId,
+      event: 'publishable_key.revoked',
+      resourceType: 'publishable_key',
+      resourceId: keyId,
     });
   }
 }

@@ -7,9 +7,11 @@ export const deliveryStatusEnum = pgEnum('delivery_status', ['pending', 'success
 export const auditEventEnum = pgEnum('audit_event', [
   'schema.created',
   'schema.version_created',
+  'schema.deleted',
   'submission.created',
   'submission.confirmed',
   'submission.field_edited',
+  'submission.retried',
   'webhook.registered',
   'webhook.delivery_succeeded',
   'webhook.delivery_failed',

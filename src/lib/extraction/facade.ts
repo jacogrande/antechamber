@@ -4,6 +4,9 @@ import { extractFieldsFromPage } from './page-extractor';
 import { synthesizeFields } from './synthesis';
 import { normalizeFieldValue } from './normalize';
 import { validateAllFields, applyValidationResults } from './validate';
+import { createLogger } from '../logger';
+
+const log = createLogger('extraction');
 
 /**
  * Split an array into chunks of at most `size` elements.
@@ -32,18 +35,18 @@ export async function extractAndSynthesize(
 ): Promise<ExtractionOutput> {
   const cfg = { ...DEFAULT_EXTRACTION_CONFIG, ...config };
 
-  console.log(`[extraction] Starting extraction for ${input.fields.length} fields from ${input.pages.length} pages`);
-  console.log(`[extraction] Fields: ${input.fields.map(f => f.key).join(', ')}`);
+  log.info('Starting extraction', { fieldCount: input.fields.length, pageCount: input.pages.length });
+  log.debug('Fields', { keys: input.fields.map(f => f.key) });
 
   // 1. Per-page LLM extraction (bounded concurrency)
   const pageResults: PageExtractionResult[] = [];
   const batches = chunk(input.pages, cfg.extractionConcurrency);
-  console.log(`[extraction] Processing ${batches.length} batches (concurrency: ${cfg.extractionConcurrency})`);
+  log.debug('Processing batches', { batchCount: batches.length, concurrency: cfg.extractionConcurrency });
 
   let batchNum = 0;
   for (const batch of batches) {
     batchNum++;
-    console.log(`[extraction] Processing batch ${batchNum}/${batches.length} (${batch.length} pages)`);
+    log.debug('Processing batch', { batch: batchNum, total: batches.length, pages: batch.length });
     const batchStart = Date.now();
     const batchResults = await Promise.all(
       batch.map((page) =>
@@ -51,31 +54,31 @@ export async function extractAndSynthesize(
       ),
     );
     const batchTime = Date.now() - batchStart;
-    console.log(`[extraction] Batch ${batchNum} complete in ${batchTime}ms`);
+    log.debug('Batch complete', { batch: batchNum, elapsed: batchTime });
     pageResults.push(...batchResults);
   }
 
   // 2. Deterministic synthesis/merge
-  console.log('[extraction] Synthesizing results from all pages...');
+  log.debug('Synthesizing results from all pages...');
   let synthesized = synthesizeFields(input.fields, pageResults, config);
   const foundCount = synthesized.filter(f => f.confidence > 0 && f.value !== null).length;
-  console.log(`[extraction] Synthesis complete: ${foundCount}/${synthesized.length} fields have values`);
+  log.info('Synthesis complete', { found: foundCount, total: synthesized.length });
 
   // 3. Normalization
-  console.log('[extraction] Normalizing field values...');
+  log.debug('Normalizing field values...');
   synthesized = synthesized.map((f) => ({
     ...f,
     value: normalizeFieldValue(f.key, f.value),
   }));
 
   // 4. Schema constraint validation
-  console.log('[extraction] Validating against schema constraints...');
+  log.debug('Validating against schema constraints...');
   const issues = validateAllFields(input.fields, synthesized);
   if (issues.length > 0) {
-    console.log(`[extraction] Found ${issues.length} validation issues`);
+    log.info('Validation issues found', { count: issues.length });
   }
   synthesized = applyValidationResults(synthesized, issues);
 
-  console.log('[extraction] Extraction pipeline complete');
+  log.info('Extraction pipeline complete');
   return { fields: synthesized, pageResults };
 }

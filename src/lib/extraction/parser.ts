@@ -1,5 +1,8 @@
 import type { FieldDefinition } from '../../types/domain';
 import type { PageFieldExtraction } from './types';
+import { createLogger } from '../logger';
+
+const log = createLogger('extraction:parser');
 
 interface RawExtraction {
   key?: unknown;
@@ -144,7 +147,7 @@ export function parseExtractionResult(
     const penalty = computeEvidencePenalty(coerced, snippet);
     if (penalty > 0) {
       confidence = Math.max(0, confidence - penalty);
-      console.log(`[extraction] Penalized "${key}" confidence by ${penalty} (snippet doesn't evidence value)`);
+      log.debug('Penalized confidence', { key, penalty, reason: "snippet doesn't evidence value" });
     }
 
     const reason =
@@ -154,7 +157,7 @@ export function parseExtractionResult(
 
     // Skip extractions with low confidence after penalty (must be at least 50%)
     if (confidence < 0.5) {
-      console.log(`[extraction] Skipping "${key}" - confidence too low after evidence check (${confidence.toFixed(2)})`);
+      log.debug('Skipping low confidence', { key, confidence: confidence.toFixed(2) });
       continue;
     }
 
