@@ -4,6 +4,7 @@ import { getDb } from '../db/client';
 import { tenants, tenantMemberships, users } from '../db/schema';
 import { createTenantRequestSchema } from '../types/api';
 import { ValidationError, ConflictError } from '../lib/errors';
+import { isUniqueViolation } from '../lib/utils/db';
 import { eq } from 'drizzle-orm';
 
 const tenantsRoute = new Hono<AppEnv>();
@@ -22,11 +23,6 @@ function generateSlug(name: string): string {
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/-+/g, '-')
     .replace(/^-|-$/g, '');
-}
-
-/** Check if an error is a Postgres unique constraint violation (code 23505) */
-function isUniqueViolation(err: unknown): boolean {
-  return typeof err === 'object' && err !== null && 'code' in err && (err as { code: string }).code === '23505';
 }
 
 tenantsRoute.post('/api/tenants', async (c) => {

@@ -12,7 +12,8 @@ export type {
 } from './types';
 export { DEFAULT_CRAWL_CONFIG } from './types';
 
-export { normalizeUrl, validateUrl, isPrivateIp, hashUrl } from './url';
+export { normalizeUrl, validateUrl, hashUrl } from './url';
+export { isPrivateIp } from '../utils/network';
 export { parseRobots, fetchRobots } from './robots';
 export { extractContent, stripHtml } from './extractor';
 export { parseSitemap, discoverPages, generateHeuristicUrls } from './sitemap';

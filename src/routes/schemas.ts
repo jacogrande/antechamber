@@ -6,12 +6,8 @@ import type { Database } from '../db/client';
 import { schemas, schemaVersions, submissions } from '../db/schema';
 import { createSchemaRequestSchema, createSchemaVersionRequestSchema } from '../types/api';
 import { ValidationError, NotFoundError, ConflictError } from '../lib/errors';
+import { isUniqueViolation } from '../lib/utils/db';
 import { AuditService } from '../lib/audit';
-
-/** Check if an error is a Postgres unique constraint violation (code 23505) */
-function isUniqueViolation(err: unknown): boolean {
-  return typeof err === 'object' && err !== null && 'code' in err && (err as { code: string }).code === '23505';
-}
 
 export interface SchemasRouteDeps {
   db?: Database;

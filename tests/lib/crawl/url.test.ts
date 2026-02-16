@@ -21,7 +21,8 @@ void mock.module('node:dns', () => ({
 }));
 
 // Import AFTER mock so the mock is in place
-import { normalizeUrl, validateUrl, isPrivateIp, hashUrl } from '@/lib/crawl/url';
+import { normalizeUrl, validateUrl, hashUrl } from '@/lib/crawl/url';
+import { isPrivateIp } from '@/lib/utils/network';
 
 // ---------------------------------------------------------------------------
 // normalizeUrl
