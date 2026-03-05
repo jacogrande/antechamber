@@ -2,7 +2,6 @@ import { describe, test, expect } from 'bun:test';
 import { parseExtractionResult, coerceValue } from '@/lib/extraction/parser';
 import { makeFieldDefinition } from './helpers';
 import basicResponse from './fixtures/llm-response-basic.json';
-import partialResponse from './fixtures/llm-response-partial.json';
 import malformedResponse from './fixtures/llm-response-malformed.json';
 
 describe('coerceValue', () => {
@@ -133,17 +132,27 @@ describe('parseExtractionResult', () => {
   test('clamps confidence to [0, 1]', () => {
     const raw = {
       extractions: [
-        { key: 'company_name', value: 'Test', confidence: 1.5, snippet: 'evidence' },
-        { key: 'industry', value: 'Tech', confidence: -0.5, snippet: 'evidence' },
+        { key: 'company_name', value: 'Test', confidence: 1.5, snippet: 'Test company profile' },
       ],
     };
     const result = parseExtractionResult(raw, fields);
     expect(result[0].confidence).toBe(1);
-    expect(result[1].confidence).toBe(0);
   });
 
   test('preserves reason when present', () => {
-    const result = parseExtractionResult(partialResponse, fields);
+    const raw = {
+      extractions: [
+        {
+          key: 'company_name',
+          value: 'Acme Corp',
+          confidence: 0.9,
+          snippet: 'Acme Corp is a global provider',
+          reason: 'The company name is explicitly stated.',
+        },
+      ],
+    };
+    const result = parseExtractionResult(raw, fields);
+    expect(result).toHaveLength(1);
     expect(result[0].reason).toBeDefined();
     expect(result[0].reason!.length).toBeGreaterThan(0);
   });
@@ -178,27 +187,27 @@ describe('parseExtractionResult', () => {
   test('handles non-finite confidence gracefully', () => {
     const raw = {
       extractions: [
-        { key: 'company_name', value: 'Test', confidence: 'high', snippet: 'evidence' },
+        { key: 'company_name', value: 'Test', confidence: 'high', snippet: 'Test company details' },
       ],
     };
     const result = parseExtractionResult(raw, fields);
-    expect(result[0].confidence).toBe(0);
+    expect(result).toHaveLength(0);
   });
 
-  test('confidence exactly 0 is preserved', () => {
+  test('filters out confidence exactly 0', () => {
     const raw = {
       extractions: [
-        { key: 'company_name', value: 'Test', confidence: 0, snippet: 'evidence' },
+        { key: 'company_name', value: 'Test', confidence: 0, snippet: 'Test company details' },
       ],
     };
     const result = parseExtractionResult(raw, fields);
-    expect(result[0].confidence).toBe(0);
+    expect(result).toHaveLength(0);
   });
 
   test('confidence exactly 1 is preserved', () => {
     const raw = {
       extractions: [
-        { key: 'company_name', value: 'Test', confidence: 1, snippet: 'evidence' },
+        { key: 'company_name', value: 'Test', confidence: 1, snippet: 'Test company details' },
       ],
     };
     const result = parseExtractionResult(raw, fields);
@@ -208,20 +217,20 @@ describe('parseExtractionResult', () => {
   test('confidence just above 1 is clamped to 1', () => {
     const raw = {
       extractions: [
-        { key: 'company_name', value: 'Test', confidence: 1.01, snippet: 'evidence' },
+        { key: 'company_name', value: 'Test', confidence: 1.01, snippet: 'Test company details' },
       ],
     };
     const result = parseExtractionResult(raw, fields);
     expect(result[0].confidence).toBe(1);
   });
 
-  test('confidence just below 0 is clamped to 0', () => {
+  test('filters out confidence just below 0', () => {
     const raw = {
       extractions: [
-        { key: 'company_name', value: 'Test', confidence: -0.01, snippet: 'evidence' },
+        { key: 'company_name', value: 'Test', confidence: -0.01, snippet: 'Test company details' },
       ],
     };
     const result = parseExtractionResult(raw, fields);
-    expect(result[0].confidence).toBe(0);
+    expect(result).toHaveLength(0);
   });
 });

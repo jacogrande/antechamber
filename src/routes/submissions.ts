@@ -556,7 +556,7 @@ export function createSubmissionsRoute(depsOverride?: SubmissionsRouteDeps) {
     );
 
     const deliveryResults = await Promise.all(
-      webhooksToDeliver.map((webhook) => {
+      webhooksToDeliver.map(async (webhook) => {
         let signingSecret: string;
         try {
           signingSecret = isEncrypted(webhook.secret) ? decrypt(webhook.secret) : webhook.secret;

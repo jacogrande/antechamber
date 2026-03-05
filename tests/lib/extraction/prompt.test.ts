@@ -12,13 +12,13 @@ describe('buildSystemPrompt', () => {
     const prompt = buildSystemPrompt();
     expect(prompt.length).toBeGreaterThan(0);
     expect(prompt).toContain('extract');
-    expect(prompt).toContain('confidence');
+    expect(prompt).toContain('Confidence');
     expect(prompt).toContain('snippet');
   });
 
   test('instructs not to fabricate values', () => {
     const prompt = buildSystemPrompt();
-    expect(prompt.toLowerCase()).toContain('not fabricate');
+    expect(prompt.toLowerCase()).toContain('do not guess');
   });
 });
 

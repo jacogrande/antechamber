@@ -4,7 +4,7 @@ type Level = keyof typeof LEVELS;
 const SENSITIVE_KEYS = ['password', 'token', 'secret', 'key', 'authorization', 'api_key', 'apikey'];
 
 function getMinLevel(): Level {
-  const env = process.env.LOG_LEVEL as string | undefined;
+  const env = process.env.LOG_LEVEL;
   if (env) {
     if (env in LEVELS) return env as Level;
     console.warn(

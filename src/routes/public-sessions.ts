@@ -572,7 +572,7 @@ export function createPublicSessionsRoute(depsOverride?: PublicSessionsRouteDeps
 
     // Fire-and-forget: don't block the public response on webhook delivery
     void Promise.all(
-      webhooksToDeliver.map((webhook) => {
+      webhooksToDeliver.map(async (webhook) => {
         let signingSecret: string;
         try {
           signingSecret = isEncrypted(webhook.secret) ? decrypt(webhook.secret) : webhook.secret;

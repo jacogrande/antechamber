@@ -67,6 +67,8 @@ export function coerceValue(
  */
 function computeEvidencePenalty(value: unknown, snippet: string): number {
   const snippetLower = snippet.toLowerCase();
+  const normalizeAlnum = (text: string): string =>
+    text.toLowerCase().replace(/[^a-z0-9]/g, '');
 
   // For string values, check if the value (or significant part) appears in the snippet
   if (typeof value === 'string') {
@@ -74,6 +76,13 @@ function computeEvidencePenalty(value: unknown, snippet: string): number {
 
     // Direct match - no penalty
     if (snippetLower.includes(valueLower)) {
+      return 0;
+    }
+
+    // Allow punctuation/spacing differences (e.g. "5551234567" vs "555-123-4567")
+    const normalizedValue = normalizeAlnum(valueLower);
+    const normalizedSnippet = normalizeAlnum(snippetLower);
+    if (normalizedValue.length >= 5 && normalizedSnippet.includes(normalizedValue)) {
       return 0;
     }
 

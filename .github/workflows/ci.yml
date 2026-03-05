@@ -10,8 +10,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          path: antechamber
+      - uses: actions/checkout@v4
+        with:
+          repository: jacogrande/antechamber-client
+          path: antechamber-client
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
+        working-directory: antechamber
       - run: bun run lint
+        working-directory: antechamber
       - run: bun run typecheck
+        working-directory: antechamber
       - run: bun test
+        working-directory: antechamber
